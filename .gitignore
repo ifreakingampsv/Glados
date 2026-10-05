@@ -1,0 +1,14 @@
+# secrets & env
+.env*
+
+# deps & builds
+node_modules/
+.next/
+dist/
+
+# learning notes (VibeWise)
+.vibe-wise/
+
+# tooling artifacts
+out/
+.v2c/
