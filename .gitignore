@@ -6,6 +6,9 @@ node_modules/
 .next/
 dist/
 
+# local embedded postgres data
+.pgdata/
+
 # learning notes (VibeWise)
 .vibe-wise/
 

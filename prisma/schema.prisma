@@ -1,0 +1,245 @@
+// S0 spine schema. D25 division: mutable descriptive facts = normal tables;
+// history = append-only log (event_log). No per-user tables (D30).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// Identity is owned by Clerk (D35); this row exists for spine FKs and is kept
+// in sync by webhooks + lazy backstop.
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String?
+  role      Role     @default(USER)
+  invitedAt DateTime? // set when an invite code is redeemed (T03 gate)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// D7/D38b: funnel stays ours — public email capture + single-use codes.
+model WaitlistEmail {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model InviteCode {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  createdBy  String?
+  redeemedBy String?
+  redeemedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+// Mutable descriptive facts (D25). Profile = field dictionary, JSON-Resume-
+// compatible, so the future autofill extension is a renderer (D1-era scope).
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  fields    Json
+  updatedAt DateTime @updatedAt
+}
+
+model TargetRole {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  seniority String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Leaf config; keys are allowlisted in the service layer (D37c).
+model Preference {
+  id     String @id @default(cuid())
+  userId String
+  key    String
+  value  String
+
+  @@unique([userId, key])
+}
+
+// First-class spine entity (T05); recruiter view later JOINs this × event_log (D11).
+model Project {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String
+  links       Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// D24/D27/D33: curated canonical vocabulary + aliases + candidates in one
+// table (status); never hard-deleted — merge leaves aliasOfId so old event
+// references resolve read-time. parentId = D27 taxonomy (react → frontend).
+enum SkillStatus {
+  ACTIVE
+  CANDIDATE
+  RETIRED
+}
+
+model Skill {
+  id        String      @id @default(cuid())
+  name      String      @unique // normalized form
+  display   String
+  parentId  String?
+  status    SkillStatus @default(ACTIVE)
+  aliasOfId String?     // set on merge (D33b)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  aliases   SkillAlias[]
+
+  @@index([parentId])
+  @@index([status])
+}
+
+model SkillAlias {
+  id      String @id @default(cuid())
+  alias   String @unique // normalized
+  skillId String
+  skill   Skill  @relation(fields: [skillId], references: [id])
+}
+
+model UserSkill {
+  id              String    @id @default(cuid())
+  userId          String
+  skillId         String
+  claimedLevel    Int? // self-rating 1–5; NEVER in the score (D24)
+  score           Float     @default(0)
+  level           Int       @default(0)
+  lastEvidencedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, skillId])
+  @@index([skillId])
+}
+
+// Append-only history (D25). Levels NEVER live here; points are the
+// base_points(type, source) snapshot at write time, so config changes never
+// rewrite history. occurred_at is clamped to ≤ now (decay can't be gamed).
+model EventLog {
+  id         String   @id @default(cuid())
+  userId     String
+  type       String
+  points     Int      @default(0)
+  occurredAt DateTime
+  source     String
+  skills     String[] @default([])
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([skills], type: Gin)
+}
+
+// Tunables live as config rows, not code constants (D28 philosophy):
+// levels.bands, points.types, points.sourceWeights, quotas, budget.
+model Config {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+// D35: agent auth. Hash at rest, shown once, prefix lookup, revocable.
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  prefix     String    @unique
+  hash       String    @unique
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// D26: BYO keys as encrypted blobs; plaintext never touches the DB.
+model Credential {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String
+  last4      String
+  data       String // base64(iv:tag:ciphertext), AES-256-GCM under the KEK
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, provider])
+}
+
+// D26: the routing table is DATA — provider swaps are row edits.
+model ProviderRoute {
+  id           String  @id @default(cuid())
+  feature      String
+  provider     String
+  model        String
+  endpoint     String
+  costPer1kUsd Float   @default(0)
+  isActive     Boolean @default(true)
+}
+
+// D38c: one row per gateway call; counters + energy in the same transaction.
+model Usage {
+  id             String   @id @default(cuid())
+  userId         String
+  feature        String
+  provider       String
+  model          String
+  inputTokens    Int
+  outputTokens   Int
+  costUsd        Float
+  via            String // byo | platform
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model DailyCounter {
+  id     String @id @default(cuid())
+  userId String
+  date   String // YYYY-MM-DD (UTC)
+  count  Int    @default(0)
+
+  @@unique([userId, date])
+}
+
+// D28/D36: energy denominated in bars (1 bar = worst-case $0.10).
+model EnergyAccount {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  balance        Float     @default(0)
+  lastGrantDate  String? // YYYY-MM-DD (UTC) — lazy daily grant
+  lastEarnedAt   DateTime? // weekly earned replenishment (T14)
+}
+
+model FeatureFlag {
+  key       String   @id // the feature name
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+// D5/D28: hard alert tripwire — the budget alert stops the crowd.
+model BudgetAlert {
+  id        String   @id @default(cuid())
+  month     String   @unique // YYYY-MM
+  amountUsd Float
+  createdAt DateTime @default(now())
+}
