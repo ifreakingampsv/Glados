@@ -1,0 +1,5 @@
+{
+  "ignore": ["package-lock.json"],
+  "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+  "*.{js,mjs,json,md,css}": "prettier --write"
+}

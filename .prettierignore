@@ -1,0 +1,9 @@
+node_modules/
+.next/
+.pgdata/
+out/
+.v2c/
+.vibe-wise/
+package-lock.json
+.env*
+next-env.d.ts
