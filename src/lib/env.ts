@@ -23,6 +23,13 @@ export const env = {
   clerkWebhookSecret: optional("CLERK_WEBHOOK_SECRET"),
   cronSecret: optional("CRON_SECRET"),
   cronConfigured: !!optional("CRON_SECRET"),
+  // Cloudflare R2 object storage (D64)
+  r2Endpoint: optional("R2_ENDPOINT"),
+  r2Bucket: optional("R2_BUCKET"),
+  r2AccessKeyId: optional("R2_ACCESS_KEY_ID"),
+  r2SecretAccessKey: optional("R2_SECRET_ACCESS_KEY"),
+  // Anonymous scanner IP hashing pepper (D60)
+  ipHashPepper: optional("IP_HASH_PEPPER") ?? "dev-only-ip-pepper-replace-me",
 };
 
 export function isClerkConfigured(): boolean {

@@ -351,6 +351,400 @@ Codename GLaDOS (public name TBD — Valve trademark risk, D18).
   AI-CONSTRUCTION feature through the gateway (AI in construction, never selection —
   D30 principle). Detail is challengeable/expandable at the S4 design chat.
 
+## S1 design chat (started 2026-10-07)
+
+- **[D40] LinkedIn commit→post triggers (D22 amended, learner):** posting is ALWAYS
+  user-triggered. The nightly cron (a scheduled job that runs with no human involved)
+  becomes an OPTIONAL draft-preparer, not a poster. Primary path = an on-demand "draft a
+  post" action that unlocks when the user marks a project milestone ("sizable portion
+  done" — exact milestone signal defined at spec time; likely an event_log type + project
+  status, deterministic and user-owned rather than AI-inferred). D22's guardrails stand:
+  public repos / user-flagged work only, grounded in real commits, LinkedIn official share
+  API, 1–2 posts/week max. AI constructs the draft; the user selects, edits, times, and
+  posts it (D30 principle).
+- **[D41] Skill calibration quizzes (upgrades the 2026-10-06 per-skill-quiz note from
+  "S4 reinforcement" to calibration-first, learner):** deterministic, low-token quizzing
+  that establishes a user's real level per skill up front. Per-skill question banks
+  generated ONCE per skill through the gateway, cached, reused across all users
+  (amortized cost — no per-user LLM calls). v1 = multiple-choice, graded deterministically
+  (zero per-answer tokens); results write event_log evidence with a low-trust-weight quiz
+  source (existing rule stands) and feed the level bands that S2 interviews, S3 project
+  recommendations, and S4 study adapt to. Free-text "explain how it works" interview-style
+  mode is staged LATER (self-assessed against a model answer, or LLM-graded once S2's
+  eval harness exists — never LLM-graded inside S1). PLACEMENT DECIDED 2026-10-07 (learner
+  delegated the call): v1 ships in S1 — a cheap first real client of the S0 spine (writes
+  evidence events, recomputes user_skills, needs no queue or hosting migration).
+- **[D42] Gap map fit score (learner, 2026-10-07):** the gap map gains a deterministic fit
+  percentage (simplified.jobs-style "how good a fit is this JD"), DERIVED from the D27 set
+  difference + user_skills levels — earned ÷ required with partial credit by level; exact
+  formula fixed at spec time. No AI at score time (D30 principle); the number always drills
+  through to the explainable gap list (D27 explainability preserved). One honest number,
+  not ten — no fake precision.
+- **[D43] Admin economics dashboard (learner, 2026-10-07; S1 ticket):** admin-only page
+  tracking free-tier economics from day one: (a) ACTUALS — spend by feature/day from the
+  D38c usage rows; (b) PROJECTIONS — config-driven assumptions (scans/user/day × users ×
+  unit cost; unit costs read from the D26 routing table); (c) fixed server costs as config
+  rows; (d) break-even view — the price floor per paid user covering fixed + projected AI
+  cost at a target margin. Quota/budget tuning happens through the existing D28 config rows.
+  v0 = three honest numbers on one page; no gold-plating.
+- **[D44] Rendering engine re-evaluated (learner request, 2026-10-07):** D20 re-argued and
+  STANDS: HTML/CSS → headless Chrome. Research confirms it is the industry-default path for
+  web resume builders (Reactive Resume exports exactly this way; its #1 self-host pain is
+  headless-Chrome container config — a known integration point, not a blocker). LaTeX
+  rejected (TeX Live footprint, seconds-long compiles, TeX-injection risk when templating
+  user content, a whole new language = poor learning transfer). Typst noted as the modern
+  challenger (fast single binary, browser-side compilation possible) — revisit only if
+  D20's ceiling provably pinches. react-pdf rejected for the main path (separate layout
+  code from the preview, manual pagination, lower design ceiling). AMENDMENT to D20: adopt
+  a battle-tested print-CSS template as the starting point (D16 prior-art note) rather
+  than designing typography from scratch.
+- **[D45] GitHub import auth (research + learner-delegated technical pick, 2026-10-07):**
+  no custom OAuth dance — the user connects GitHub as a Clerk external account and the
+  server reads the token via getUserOauthAccessToken(userId, "github") (server-side only).
+  Request minimal scopes (read public repos + commits) at spec time; token expiry/refresh
+  is a known OAuth rough edge (integration point). PAT import stays a flag-gated fallback
+  for private repos / power users later.
+- **Research snapshot (2026-10-07, S1 tools):** (1) LinkedIn member posting via the
+  official API is SELF-SERVE — "Share on LinkedIn" product + w_member_social scope, no
+  partner approval; only organization-page posting is partner-gated (not needed) → D22/D40
+  posting path confirmed feasible. (2) GitHub REST API directly supports the evidence-weight
+  mitigations below: repo objects carry a fork boolean; list-commits supports author
+  filtering; search/commits CANNOT exclude forks (use per-repo listing); 5,000 req/hr with a
+  token → octokit-plugin-throttling/retry is standard. (3) PDF text extraction: pdf-parse
+  (simplest), pdfjs-dist (low-level, Next.js bundling friction), unpdf (PDF.js-based,
+  serverless-friendly, maintained) — lean unpdf, final pick at spec. (4) Hosting trigger
+  context: Railway free ≈ $5 trial + $1/mo credit; Render free tier = web only with cold
+  starts, background workers are PAID — the D31 container move means a small paid instance
+  (~$5/mo class) either way; verify Student Pack coverage when the trigger fires (D31 stands).
+
+- **[D47] Evidence tuning console (learner, 2026-10-07; PROPOSED — challengeable):** the
+  D43 admin surface grows a second tab for tuning the evidence/level pipeline, because
+  point weights and decay knobs need observation, not vibes. Method: **change → replay →
+  diff → apply** — weights live as config rows; the what-if replay re-runs the D24
+  computation over the real event log (user_skills is already a materialized cache rebuilt
+  from the log by one writer, so recompute is a known, already-built operation) and shows
+  the resulting level diff BEFORE applying. Readouts v1 (S1, cheap): level distribution per
+  skill (flat = uninformative), source-mix breakdown, evidence-vs-quiz divergence (the
+  population-level AI-built-repo signal), top movers. What-if replay ships behind a flag
+  once real traffic exists (meaningless at 5 users); tuning sessions happen at each D7
+  ramp stage (50 → 500 → 5,000).
+- **[D48] Resume auto-fit ladder (learner request, 2026-10-07; PROPOSED — challengeable;
+  D20 amendment):** "must fit one page" is handled by an escalation ladder, never silent AI
+  restructuring: (1) D20's fit-or-flag warning; (2) deterministic typographic shrink —
+  font/leading/margins as CSS variables stepped down within professional bounds
+  (~11pt → 10pt, margins toward 0.5in); (3) if still over, deterministic trim suggestions
+  ranked by lowest evidence weight × age × least JD relevance — the user approves each;
+  nothing is ever removed or rewritten silently. OSS builders (Reactive Resume, OpenResume)
+  stop at manual size controls because content priority is user-specific and blind
+  automated cutting looks bad; the ladder keeps every cut user-owned.
+
+- **[D46] Evidence trust ladder (learner-adjusted, 2026-10-07):** resolves the AI-built/
+  cloned-repo concern. Deterministic rules:
+  (1) Forks/clones → zero weight (GitHub fork flag). (2) Only commits authored by the
+  user's GitHub identity count. (3) Project evidence has PROVENANCE TIERS: platform-guided
+  builds (S3b — the platform watched the work happen) > imported GitHub repos (verifiable
+  existence) > resume/profile claims (take with a grain of salt). Quizzes weigh BELOW
+  project evidence but are the corroboration currency. (4) PAIRING RULE: imported/claimed
+  project skills get corroborated by quiz results; repo content is NOT mined for skill
+  depth (inferring beginner-vs-advanced TypeScript from a repo is expensive and tags don't
+  encode it) — the repo proves exposure, the quiz measures understanding. (5) CAP:
+  imported/claimed evidence alone cannot exceed a mid band (L3) until a second source type
+  corroborates (quiz or platform). (6) Wrong quiz answers write NEGATIVE signed evidence —
+  levels can fall (D24 signed points stand). (7) Exact point values = config rows, tuned
+  via the D47 console at each ramp stage; no lie-detection heuristics in v1; S2 interviews
+  re-grade claims as the backstop.
+- **[D49] UI pass timing (learner, 2026-10-07):** first ticket of S1 — polish lands right
+  before the free scanner (the first public surface), one slice, no context switch.
+- **[D50] Weekly briefing owner (resolves D37e, learner, 2026-10-07):** S2 — richest
+  inputs (interviews, projects, events) make the briefing genuinely useful; ROADMAP S2 row
+  updated.
+- **[D51] "Public" gap map (resolves the ROADMAP ambiguity, learner, 2026-10-07):** merged
+  with the free scanner as ONE attractor surface — paste a JD (+ resume) → fit % (D42) +
+  explainable gap list. No-auth visitors see a teaser; full detail behind the waitlist
+  gate (D7). This is what "public" means in the ROADMAP row.
+- **[D52] "LinkedIn review" scope (agent proposal, 2026-10-07 — challengeable):** dropped
+  as a separate feature. LinkedIn's exported profile PDF flows through the existing resume
+  parser as just another import path (data import, not review); D40's commit→post
+  generator is the S1 LinkedIn feature. If a true "review my LinkedIn" feature is wanted
+  later, it returns as a design-chat item.
+
+Open questions for the S1 design chat (argue these first — added 2026-10-07 after the
+learner correctly flagged that S1 never got the OQ treatment S0 had):
+OQ8. Gap map "have" side — does a claimed (unevidenced) skill count as "have" in the
+set difference, and what does the fit score do with claims? (Learner raised: a
+claimed skill must not silently erase a real gap.)
+OQ9. Resume parse write-back — what does an uploaded PDF create (resume_blocks?
+claimed skills?), and how do re-uploads and duplicates behave?
+OQ10. GitHub import scope & cadence — all repos vs user-selected; re-import timing
+(nightly vs on-demand); S1 = public repos only?
+OQ11. Quiz bank design — seed authoring, questions per skill, difficulty tracks
+(beginner/advanced — feeds the D46 depth problem), retake/farming rules.
+OQ12. Cost treatment of S1 features — what's free (quiz taking, PDF rendering =
+compute not AI), what draws energy, and how D28 caps apply to the merged
+scanner surface.
+OQ13. Job-description entity + privacy — where pasted JDs live, retention, per-user
+limits, and what the no-auth teaser (D51) sees and stores.
+OQ14. Teaching the trust model in-product — where the UI explains claimed vs
+evidenced so users know why quizzes/projects make results accurate
+(learner requirement).
+Status (updated 2026-10-08): OQ8 RESOLVED → [D54]. OQ9 RESOLVED → [D55] (additions
+confirmed by learner 2026-10-08) + [D56] (job/internship experience) + [D57]
+(certificates). OQ10 RESOLVED → [D58]. Quiz v1 delivery surface = WEBSITE (learner
+pick 2026-10-08; plugin/skill-library route stays available later via S2 MCP).
+Adaptive direction agreed: tiered banks + deterministic staircase + generation-time
+difficulty/sub-topic tags in S1; observed-success calibration + weak-concept loops =
+S4 study mode; LLM runtime controller rejected; embeddings layer unnecessary
+(canonical taxonomy replaces it). RESOLVED 2026-10-08: OQ12 → [D60], OQ13 → [D61],
+OQ14 → [D62]. **S1 OQ LIST CLOSED — all of OQ8–OQ14 resolved into [D54]–[D62]; the
+S1 design chat is COMPLETE (2026-10-08).** Spec-time items: milestone mechanics
+(D40), profile-strength threshold (D54), provider allowlist seed (D57), band
+boundaries + cap values (D59/D60/D61 config rows), unpdf-vs-pdf-parse pick,
+LinkedIn "Save to PDF" guide copy (D53). D47/D48 were resolved by the 2026-10-08 grill → [D68]/[D69]. **GRILL
+COMPLETE → [D63]–[D73]** (all 11 recommendations accepted). Spec:
+specs/s1-imports-gapmap-resume.md. NEXT: /to-tickets → implementation chats
+(VibeWise paused). Prior-art plan unchanged (spec time, outside the repo).
+
+- **[D53] LinkedIn profile review (learner, 2026-10-08; supersedes D52):** the feature
+  EXISTS, two intended surfaces. (a) USER SIDE (S1 candidate): the user supplies their
+  LinkedIn profile via LinkedIn's official data-export PDF, which the S1 resume parser
+  already ingests; GLaDOS then reviews how attractive the profile is to recruiters hiring
+  for the user's target roles — what to add, what to post (feeds D40 drafts), visibility
+  advice. One gateway call over data already parsed; cached per D4. (b) RECRUITER SIDE
+  (parked): "paste a candidate's LinkedIn URL + JD → match score" is D11 recruiter-view
+  territory (staged, opt-in candidates post-launch). HARD CONSTRAINT (D22/D12 posture):
+  LinkedIn actively litigates scraping — fetching arbitrary profiles by URL is off the
+  table for a tool provider; the compliant path is user-owned export + upload. Goal
+  alignment: minimal-friction guidance for people new to the job scene.
+- **[D54] Gap map modes (resolves OQ8, learner design, 2026-10-08):** the gap map runs in
+  two modes behind an explicit toggle. RESUME MODE (default; new + no-auth users): the
+  have-set comes from the parsed resume's claims — a new user gets a real, useful gap map
+  instead of an empty one. PROFILE MODE ("use your confirmed profile"): the have-set
+  merges evidenced skill levels with the user's project bank — projects match the JD
+  deterministically via their skill lists (S0 projects carry skills[]), so the map can
+  surface a relevant TypeScript project even when the uploaded resume lists only Python
+  work. The toggle carries adjacent explainer text: resume-mode results reflect CLAIMS,
+  not verified skill — build your profile, take quizzes, add projects for
+  ecosystem-accurate results (the OQ14 teaching surface). Resolves the trust dilemma both
+  ways: claims never impersonate evidence, new users never see claims count as zero.
+  AGENT-PROPOSED ADDITIONS — CONFIRMED by learner 2026-10-08: merge rule = evidence
+  always wins, claims fill only skills with zero evidence; every skill in the result
+  labeled by provenance (evidenced/claimed); fit score = the same D42 formula over
+  whichever have-set the mode produces; toggle guard = new users with no profile see
+  resume mode only (no dead switch). MODE MEMORY (learner): the chosen mode persists
+  per user across sessions; once the profile is strong (threshold fixed at spec time),
+  profile mode becomes the default automatically; a manual switch to resume mode always
+  wins and also persists until changed.
+- **[D55] Resume parse write-back (resolves OQ9 core, learner, 2026-10-08):** TWO CASES.
+  (1) No profile yet: an uploaded resume feeds the gap map/scanner transiently (D54
+  resume mode) and persists NOTHING — no skills, no blocks, no profile row. (2) Profile
+  creation: the parsed resume seeds the spine — skills enter as CLAIMS (unconfirmed),
+  content enters the D30 blocks table, and the UI offers validation paths: quizzes
+  (S1, D41) and interviews (S2). Unvalidated claims stay visible but are excluded from
+  every evidence-based surface — recruiter filters like "TypeScript L3+" query evidenced
+  user_skills only (D24: claims never in score). RE-UPLOAD: agent-proposed diff-and-stage,
+  below. AGENT-PROPOSED ADDITIONS (pending learner confirm): (a) diff-and-stage
+  re-upload — deterministic per-item diff (same / updated / new / gone), user accepts a
+  staged changeset, nothing writes until accepted; old content preserved via the event
+  log (D30) and the stored PDF (S3); skills already evidenced are untouched (D46);
+  claims absent from the newest upload get a stale flag, never auto-deleted; conflict
+  resolution is the evidence-wins rule — no similarity-based or quiz-based merge logic
+  needed. (b) Resumes never auto-create project entities — experience lands as blocks;
+  a one-click "promote to project" adds it to the project bank (which D54 profile mode
+  matches against), keeping the bank user-curated. (c) UNIFIED ERAS: instead of a
+  removable early "manual override button" for skill levels, self-set levels are a
+  PERMANENT self-assessment tier in the claim track (D24's claimed level, now
+  user-settable): displayed "self-assessed, L?", fills zero-evidence holes in profile
+  mode, never enters the evidenced score in any era. Incentive to verify grows as
+  evidence-reading surfaces ship (recruiter view, e-portfolio, S2 grading) — nothing is
+  ever taken away, so the early audience is never alienated and no data ever needs
+  reclassifying.
+- **[D56] Job + internship experience as evidence (learner, 2026-10-08):** parsed work
+  experience becomes a structured `work_experiences` entity (employer, title, period,
+  kind: job|internship, description, skills[]) that FEEDS SKILL EVIDENCE — one year
+  building a product in TypeScript/Next.js earns real points, scaled by DURATION ×
+  SPECIFICITY of what the resume describes (vague bullet < named stack + described work).
+  Ladder position (amends D46 tiers): platform-guided (S3b) > imported repos > JOB
+  experience > INTERNSHIP experience (same mechanism, lower base weight) > bare skill
+  claims. Honest framing kept: job experience is still self-reported — a structured
+  claim, not an artifact — so the D46 corroboration cap (L3 without a second source)
+  and quiz pairing apply unchanged. Corroboration paths: targeted quiz questions from
+  the claimed skill's bank (S1), deeper interview-style probing (S2 machinery).
+  QUIZ DELIVERY SURFACES (learner wants both kept separate; choose later on economics):
+  (a) website quiz (banks generated once per skill through the gateway, cached — taking
+  is free, grading deterministic); (b) SKILL LIBRARY / PLUGIN route per D29's dual-surface
+  pattern — quiz packs as a GLaDOS skill/library the user's own harness (Antigravity,
+  Gemini) generates/runs on THEIR tokens, results flow back for platform-side grading
+  (generation user-side, evaluation platform-side; MCP return path ships with S2's
+  server). S0 BACKTRACK: none required — new event type + base_points rows + the
+  work_experiences table are additive migrations (D39 precedent); resume_blocks
+  experience-kind references the entity via source_ref (D30 amendment: source_ref may
+  FK to work_experiences as well as projects).
+- **[D57] Course certificates as evidence (learner, 2026-10-08):** upload path for
+  certificates from reputable providers (Educative, deeplearning.ai, Coursera, etc.).
+  VALIDATION IS SMALL AND SHIPPABLE IN v1: provider ALLOWLIST (config rows, seeded with
+  ~10 majors) + per-provider VERIFICATION-URL pattern + existence check — Coursera-class
+  certificates carry public verify URLs made for sharing, so this is a fetch of a public
+  page, not scraping; name-mismatch on the verify page is a soft warning, never a gate
+  (nicknames/romanization are legit). Unverified upload or off-list provider = plain
+  claim tier. Ladder placement (amends D46/D56): platform-guided > verified certificate
+  ≈ imported repo (externally anchored but individually weak) > job experience >
+  internship > bare claim; corroboration cap applies unchanged. STALENESS NEEDS NO NEW
+  MECHANISM: occurred_at = cert issue date, so D24's 90-day half-life automatically
+  decays a two-year-old cert toward zero — "certified it long ago, forgot it" is handled
+  by the existing math. QUIZ CORROBORATION = optional one-line nudge ("verify with a
+  5-question check to strengthen this skill"), NEVER forced — the cap bounds cheat
+  damage already and a forced quiz wall would wreck the UX. Course→skills mapping is one
+  cached gateway call per course (D4 — every user taking "Frontend Web Developer" career
+  path reuses one mapping). S0 backtrack: none (new event type + config rows, additive).
+- **[D58] GitHub import scope & cadence (resolves OQ10, learner design + delegated
+  refinements, 2026-10-08):** HYBRID SCOPE — the connect screen lists every repo with
+  checkboxes; "import all" shortcut AND per-repo selection both available. SMART
+  PRESELECTION (agent refinement): non-fork repos with real signal (user-authored
+  commits, recent push, README/description) start CHECKED, sorted by activity; forks
+  start UNCHECKED (D46 gives them zero weight anyway) with one explainer line — "only
+  include repos you can talk about in depth, not minor-change forks" — guidance, not a
+  gate. CAP: initial import capped (~25 repos, config row) to bound API/queue cost;
+  "import more" on demand. CADENCE: ON-DEMAND "Sync now" per user in S1 — deliberately
+  DEFERS the D31 container-hosting trigger (no nightly background sync until the queue
+  exists for S2 work anyway); scheduled refresh can ship later behind a flag. PUBLIC
+  repos only in S1 per D45; private-repo import = later, flag-gated, bigger permission
+  ask.
+- **[D59] Quiz bank design v1 (resolves OQ11, agent-seeded at learner's request, all
+  values CONFIG ROWS for D47 tuning, 2026-10-08):** 3 bands/skill (L0–2, L3–4, L5–6),
+  ~24 questions per band generated once (batched gateway call, grounded in the canonical
+  skill definition), staircase session = 6 questions per round (≥5 correct steps up,
+  ≤2 steps down, else settle; typical 6–12 questions, hard cap 18, ~5–10 min). RETAKES:
+  7-day cooldown + SIGNED-DELTA events — each quiz writes points = new − previous
+  result, so append-only stands (D25), the latest state reflects best recent
+  performance, deltas cancel and grinding banks nothing; negative evidence is bounded
+  by the quiz's own positive magnitude. QA: deterministic lint (dedupe, one correct
+  option, tags present) + admin-queue spot review before a bank goes live. Tuning
+  method (learner): initial numbers now, D47 console + user interviews (learner first,
+  then the D7 50-user friend cohort) adjust later. D47 AMENDED: quiz telemetry readouts
+  added — completion rate, drop-off question index, per-question success rate, retake
+  frequency, time per question.
+- **[D60] Free-tier surface ladder (resolves OQ12, learner + agent refinements,
+  2026-10-08):** the funnel is a cost ladder. (1) ANONYMOUS teaser (D51): tight IP-based
+  daily cap (~2 scans/day, config row; IP stored HASHED, never raw) + PARTIAL results —
+  fit % and top-3 gaps visible, full gap list + evidence detail behind account creation;
+  known soft edge accepted: shared NAT (campus/office) can trip the cap for several
+  humans — tune via config, don't engineer around in v1. CTA reconciles with D7 waitlist
+  gating: "join the waitlist" (D38b email capture) or "redeem invite" — never a bare
+  signup promise at ramp stage 1. (2) FREE ACCOUNT: full results, D28 fixed daily caps
+  unchanged (scanner 3/day, JD scan 5/day). (3) No energy bars anywhere in the
+  scanner/gap-map family (all fixed-cap attractors); LinkedIn profile review (D53) =
+  free, 1/day cap (one cached gateway call — rare and cheap). Anonymous gap map is
+  resume-mode only by definition (no profile exists).
+- **[D61] Job-description persistence (resolves OQ13, agent recommendation over learner's
+  ephemeral sketch, 2026-10-08):** `job_descriptions` = per-user rows, NO auto-expiry —
+  the learner's 1-day/wipe-on-application idea was honestly argued and REJECTED because
+  auto-wipe breaks the iterate loop (paste JD Monday → refine resume Wednesday → re-scan
+  Friday: the JD must still be there) and expiry states create support noise; soft cap
+  ~20 JDs per user with FIFO prune of oldest (config row) handles storage growth instead;
+  user can delete any JD manually; "application done" archiving is an S5 jobs-tracker
+  lifecycle concept (S5 adds status to JDs, not S1). ANONYMOUS teaser data (the pasted
+  JD + its result) stored in a TTL side table (~30 days, config) keyed by anonymous
+  session cookie and CLAIMED into the account on signup — the learner's carry-over idea,
+  accepted: your teaser work follows you into your profile, and persistence becomes a
+  quiet account incentive. Storage math: JDs are ~2–6 KB text — trivial at D7 ramp
+  (50 users ≈ 6 MB); at the 5k-user stage ~600 MB would bite Neon's free tier, so the
+  D43 dashboard watches JD storage at each ramp.
+- **[D62] Teaching the trust model in-product (resolves OQ14, learner confirmed,
+  2026-10-08):** BOTH placement layers. (a) Contextual micro-teaching at every
+  provenance surface — one-line tooltips on claimed/evidenced chips, the D54
+  mode-toggle explainer, quiz nudges after certificates, each written for the exact
+  moment of curiosity, never a wall of text. (b) One central "How levels work" page —
+  the honest ladder (claims → corroboration → evidence → levels), rendered with the
+  USER'S OWN profile as the worked example, ending on the action that sharpens results
+  (verify more). Every label and nudge links there; the page is the destination the
+  existing UI references, not new machinery.
+
+## S1 grill outcomes (2026-10-08 — D40–D62 challenged; all 11 recommendations accepted)
+
+`/grill-with-docs` grounded in a code fact-sweep of the S0 spine. Four code-vs-design
+catches: Project carries NO skills (D54 assumed it does); Skill has no definition field
+(D59 assumed one); D59's "L5–6" band cannot exist (shipped levels.bands = L0–L5); the
+decay cron route shipped with NO scheduler anywhere (decay never actually ran). All
+fixed below. Learner accepted every recommendation ("all as recommended", 2026-10-08).
+
+- **[D63] S1 slice split (grill):** the design chat ~tripled S1 and it must also absorb
+  storage + the container move. SPLIT: S1 = infra (R2, container) + UI pass + imports
+  (GitHub; resume/LinkedIn parse; work experiences) + gap map + free scanner + JD
+  entity + resume builder + D43 economics + D53 LinkedIn review. S1.5 (new ROADMAP
+  row) = the calibration layer: quizzes (D41/D59), certificates (D57), tuning console
+  - what-if replay + quiz telemetry (D47), commit→post generator (D40). Rationale: the
+    attractor surfaces don't depend on the calibration layer; claims stay claim-labeled
+    until S1.5 lands (D54 resume mode needs no quizzes). ROADMAP updated.
+- **[D64] Object storage = Cloudflare R2 (grill — the S0-style gap):** S0 shipped with
+  zero storage (no SDK, env, or code) and S1 must persist uploaded PDFs (resume
+  re-uploads for diff history per D55, LinkedIn exports, later certificates). Pick:
+  R2 — S3-compatible API (D1's promise held), ~10 GB free tier fits the D7 ramp, zero
+  egress fees, private bucket + short-lived signed URLs. File IO goes ONLY through a
+  thin storage module in the service layer (the gateway pattern: one path, testable
+  seam), never public buckets.
+- **[D65] Container hosting = early S1 ticket + decay cron fix (grill):** the D31
+  trigger genuinely fires at S1 build start (first real queue jobs: imports, parse,
+  render; headless Chrome needs a container per D44). Web + worker move to Railway
+  (preferred: native worker services + cron; Render fallback) — Student Pack credits
+  expected to cover the ~$5/mo class; provider verified at build. CORRECTION: the S0
+  decay route shipped unscheduled (no cron config existed) — decay becomes a pg-boss
+  SCHEDULED job on the worker (in-DB, atomic), HTTP route kept as a manual backstop.
+  Neon and Clerk unchanged.
+- **[D66] Project skills column (grill, code catch):** D54 profile mode matches
+  projects "via their skill lists" — which don't exist (Project = title/description/
+  links only). Per D25's rule (filterable → real column): `skills String[]` on
+  projects (mirrors event_log.skills), backfilled from project_added events, editable
+  in the S1 project UI. Column = mutable fact; event log = history.
+- **[D67] GitHub import depth (grill):** metadata + deterministic skill extraction
+  ONLY (repo metadata, dependency files, README/activity signals, fork flag) — NO LLM
+  repo summarization in S1 (its consumer is S3b; D46: repos prove exposure, quizzes
+  measure depth). Import CREATES project entities directly (a repo is a verifiable
+  artifact — contrast D55b, where resume claims never auto-create projects). Forks
+  import with zero-weight evidence if explicitly selected. Commit listing defers to
+  S1.5's D40 (fetched on demand at draft time via the stored token).
+- **[D68] Evidence tuning console CONFIRMED, split along D63 (grill resolves
+  PROPOSED):** evidence readouts (level distribution per skill, source mix,
+  evidence-vs-quiz divergence, top movers) ship IN S1 as a panel on the D43 admin
+  dashboard (cheap aggregates over existing tables). Quiz telemetry (D59 readouts) +
+  the what-if replay (change → replay → diff → apply) ship in S1.5's console; replay
+  stays flag-gated until real traffic. "APPLY" = guarded maintenance job (bulk
+  user_skills rebuild, decay-sweep pattern) — explicitly OUTSIDE the per-event
+  single-writer path, never a service-layer write.
+- **[D69] Auto-fit ladder CONFIRMED, trimmed (grill resolves PROPOSED):** v1 ships
+  ladder steps 1–2 only: D20's fit-or-flag warning + deterministic typographic shrink
+  (font/leading/margins as CSS variables stepped within professional bounds — bounds
+  are config rows). Step 3 (evidence-weighted trim suggestions) DEFERRED until real
+  resumes overflow — its blocks→source_ref→evidence ranking is machinery for an
+  unobserved problem. Locked blocks (D9) are excluded from trim suggestions in any era.
+- **[D70] Quiz bank mechanics (D59 amended by grill):** (a) skills gain a definition
+  field — generated ONCE per skill through the gateway, cached (D4); reused by gap-map
+  explainers. (b) Banks generate LAZILY: the first take on a skill/band enqueues a
+  bank-generation job; cached thereafter (key: skill + band + bank version); admin
+  "generate now" button for demos/QA. (c) BANDS RE-MAPPED to the shipped levels.bands
+  (L0–L5; D59's "L5–6" was impossible): L0–1 / L2–3 / L4–5. (d) Leaf skills only —
+  parent categories get no banks in v1 (rollups aren't takeable skills).
+- **[D71] Work-experience evidence mechanics (D56 fixed by grill):** (a) specificity =
+  DETERMINISTIC heuristics v1 (named-stack mentions × description depth; parameters =
+  config rows) — not LLM-scored, so D55 re-parses can't silently re-emit different
+  evidence and every score is auditable; LLM scoring may return later if it misfires.
+  (b) Decay stays UNIFORM (D24): occurred_at = attestation/confirmation time (when
+  imported/verified), points scaled by duration × specificity; re-confirmation (a
+  user action) appends a refresh event. Deliberate contrast with D57: certs decay
+  from issue date (knowledge goes stale); experience decays from attestation (the
+  experience is still yours — re-confirming keeps it fresh, honestly).
+- **[D72] Diff-and-stage scope (D55a refined by grill):** PER-SOURCE diff — each
+  import path (resume file, LinkedIn export) diffs against content previously
+  imported from that same source; claims/blocks carry an origin marker; stale flags
+  are per-source even though the claim pool is global (a skill absent from the new
+  resume but present in the LinkedIn export does not go stale). Staged changesets
+  persist in a staging table — "review your import" survives sessions and is
+  auditable; accept applies transactionally with evidence-wins conflicts (D55a
+  otherwise unchanged).
+- **[D73] Mode-memory priority (D54 edge fixed by grill):** an explicit manual mode
+  choice ALWAYS beats the strength-threshold auto-flip; the auto-flip sets the default
+  only for users who never explicitly chose. The toggle shows the current effective
+  mode; the "manual switch always wins and persists" promise holds across sessions.
+
 ## Open questions for the VibeWise design chat (argue these first)
 
 1. Spine schema details: skills alias table design; evidence → level computation.

@@ -68,50 +68,62 @@ export function SkillTagger() {
   }
 
   return (
-    <div style={{ margin: "1rem 0" }}>
-      <input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Type a skill (e.g. rust, koltin, ts)"
-      />
-      <select value={level} onChange={(e) => setLevel(e.target.value)}>
-        <option value="">no claimed level</option>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <option key={n} value={n}>
-            claim L{n}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        onClick={submit}
-        disabled={pending || !input.trim()}
-      >
-        Tag
-      </button>
-      {pending && <span> …</span>}
-      {message && <p style={{ color: "#a33" }}>{message}</p>}
-      {resolution?.status === "confirm" && (
-        <div
-          style={{
-            border: "1px solid #ccc",
-            padding: "0.5rem",
-            marginTop: "0.5rem",
-          }}
+    <div className="stack">
+      <div className="row">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type a skill (e.g. rust, koltin, ts)"
+          aria-label="Skill name"
+        />
+        <select
+          value={level}
+          onChange={(e) => setLevel(e.target.value)}
+          aria-label="Claimed skill level"
         >
-          <p>Did you mean one of these?</p>
-          {resolution.choices.map((choice) => (
-            <button
-              key={choice.id}
-              type="button"
-              onClick={() => confirmPick(choice.id)}
-            >
-              {choice.name} ({choice.kind}, d≤3)
-            </button>
+          <option value="">No claimed level</option>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <option key={n} value={n}>
+              Claim L{n}
+            </option>
           ))}
-          <button type="button" onClick={() => confirmPick(undefined)}>
-            None of these — create “{resolution.tag}”
-          </button>
+        </select>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={submit}
+          disabled={pending || !input.trim()}
+        >
+          {pending ? "Tagging..." : "Tag skill"}
+        </button>
+      </div>
+      {message && (
+        <div className="alert alert-danger" role="alert">
+          {message}
+        </div>
+      )}
+      {resolution?.status === "confirm" && (
+        <div className="item-row stack">
+          <p className="muted">Did you mean one of these skills?</p>
+          <div className="row">
+            {resolution.choices.map((choice) => (
+              <button
+                key={choice.id}
+                type="button"
+                className="btn btn-sm"
+                onClick={() => confirmPick(choice.id)}
+              >
+                {choice.name} ({choice.kind}, d&le;3)
+              </button>
+            ))}
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => confirmPick(undefined)}
+            >
+              Create new candidate &ldquo;{resolution.tag}&rdquo;
+            </button>
+          </div>
         </div>
       )}
     </div>

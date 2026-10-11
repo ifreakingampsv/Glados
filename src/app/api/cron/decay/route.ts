@@ -4,9 +4,8 @@ import { runDecaySweep } from "@/services/levels";
 
 export const dynamic = "force-dynamic";
 
-// Vercel Cron stopgap (D31/D32): drains the nightly decay job. Hobby cron is
-// daily-only — acceptable for this sweep; real queue volume triggers the
-// container-platform move per D31.
+// Manual backstop for the decay sweep (D65): nightly scheduled runs happen via
+// pg-boss on the persistent worker (`decay_sweep` cron `0 3 * * *` UTC).
 export async function GET(req: Request) {
   if (env.cronConfigured) {
     const auth = req.headers.get("authorization");

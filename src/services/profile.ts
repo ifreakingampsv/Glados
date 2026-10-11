@@ -112,6 +112,7 @@ export const KNOWN_PREFERENCE_KEYS = [
   "notification_email",
   "timezone",
   "briefing_enabled",
+  "gap_map_mode",
 ] as const;
 
 export async function setPreference(

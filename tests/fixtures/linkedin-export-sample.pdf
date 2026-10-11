@@ -1,0 +1,46 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 513 >>
+stream
+BT
+/F1 10 Tf
+14 TL
+50 750 Td
+(LinkedIn Profile Export) Tj
+T* (Ada Lovelace) Tj
+T* (Senior Full Stack Engineer) Tj
+T* (Top Skills: TypeScript, React, PostgreSQL, Docker) Tj
+T* (Summary: Building distributed web platforms with Next.js and PostgreSQL.) Tj
+T* (Experience:) Tj
+T* (Analytical Engine Corp - Principal Engineer \(2022-01 to 2025-01\)) Tj
+T* (Architected TypeScript and PostgreSQL services with Redis caching.) Tj
+T* (Education:) Tj
+T* (University of London - B.S. Mathematics and Computer Science) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000805 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+875
+%%EOF

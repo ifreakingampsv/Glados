@@ -81,10 +81,12 @@ model Project {
   title       String
   description String
   links       Json     @default("[]")
+  skills      String[] @default([])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId])
+  @@index([skills], type: Gin)
 }
 
 // D24/D27/D33: curated canonical vocabulary + aliases + candidates in one
@@ -97,15 +99,16 @@ enum SkillStatus {
 }
 
 model Skill {
-  id        String      @id @default(cuid())
-  name      String      @unique // normalized form
-  display   String
-  parentId  String?
-  status    SkillStatus @default(ACTIVE)
-  aliasOfId String?     // set on merge (D33b)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  aliases   SkillAlias[]
+  id         String      @id @default(cuid())
+  name       String      @unique // normalized form
+  display    String
+  definition String?     // D70: generated once via gateway, cached (D4)
+  parentId   String?
+  status     SkillStatus @default(ACTIVE)
+  aliasOfId  String?     // set on merge (D33b)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  aliases    SkillAlias[]
 
   @@index([parentId])
   @@index([status])
@@ -123,6 +126,8 @@ model UserSkill {
   userId          String
   skillId         String
   claimedLevel    Int? // self-rating 1–5; NEVER in the score (D24)
+  claimOrigins    String[]  @default([]) // e.g. ["resume", "linkedin", "self"]
+  staleOrigins    String[]  @default([]) // per-source staleness flags (D55a/D72)
   score           Float     @default(0)
   level           Int       @default(0)
   lastEvidencedAt DateTime?
@@ -221,6 +226,16 @@ model DailyCounter {
   @@unique([userId, date])
 }
 
+// Per-feature and hashed-IP daily counters for S1 attractor caps (D28/D51/D60).
+model RateLimitCounter {
+  id        String @id @default(cuid())
+  bucketKey String
+  date      String // YYYY-MM-DD (UTC)
+  count     Int    @default(0)
+
+  @@unique([bucketKey, date])
+}
+
 // D28/D36: energy denominated in bars (1 bar = worst-case $0.10).
 model EnergyAccount {
   id             String    @id @default(cuid())
@@ -243,3 +258,107 @@ model BudgetAlert {
   amountUsd Float
   createdAt DateTime @default(now())
 }
+
+// D4: content-hash cache for gateway calls (definitions, parses, JD extracts, reviews).
+model GatewayCache {
+  cacheKey  String   @id
+  feature   String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([feature])
+}
+
+// D56/D71: Structured work experience rows earning evidence via duration * specificity.
+model WorkExperience {
+  id                String   @id @default(cuid())
+  userId            String
+  employer          String
+  title             String
+  period            String
+  durationMonths    Int      @default(12)
+  kind              String   @default("job") // job | internship
+  description       String
+  skills            String[] @default([])
+  origin            String   @default("resume") // resume | linkedin | web
+  staleOrigins      String[] @default([])
+  promotedProjectId String?
+  lastConfirmedAt   DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// D9/D30/D37a: Resume blocks with lock status, source_ref, and JD-bound variants.
+model ResumeBlock {
+  id                    String   @id @default(cuid())
+  userId                String
+  kind                  String   // summary | experience | skill_group | education | custom
+  title                 String   @default("")
+  content               String
+  status                String   @default("draft") // draft | locked
+  sortOrder             Int      @default(0)
+  sourceRefType         String?  // project | work_experience
+  sourceRefId           String?
+  parentId              String?
+  fromJdId              String?
+  manualOverrideForJdId String?
+  origin                String   @default("web") // resume | linkedin | web
+  staleOrigins          String[] @default([])
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([userId, sortOrder])
+  @@index([parentId])
+}
+
+// D55a/D72: Persistent diff-and-stage table for re-uploaded resume/LinkedIn files.
+model ResumeImportStaging {
+  id            String   @id @default(cuid())
+  userId        String
+  source        String   // resume | linkedin
+  storageKey    String?
+  parsedPayload Json
+  diffItems     Json
+  status        String   @default("pending") // pending | applied | declined
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+// D61: Per-user persisted job descriptions with FIFO soft cap and canonical skill requirements.
+model JobDescription {
+  id             String   @id @default(cuid())
+  userId         String
+  title          String
+  company        String?
+  rawText        String
+  contentHash    String
+  requiredSkills Json     // Array<{ skillId: string; expectedLevel: number; category?: string }>
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+// D51/D61: Anonymous scanner TTL side table claimed on signup.
+model AnonymousScan {
+  id              String    @id @default(cuid())
+  sessionToken    String    @unique
+  jdTitle         String
+  jdText          String
+  resumeText      String?
+  fitScore        Int
+  topGaps         Json
+  fullResult      Json
+  expiresAt       DateTime
+  claimedByUserId String?
+  claimedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([expiresAt])
+}
+
+

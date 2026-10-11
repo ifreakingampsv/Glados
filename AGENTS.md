@@ -30,3 +30,9 @@ Context lives in files, not in any chat. Read what your role needs — never eve
    the slice added, commit the work, and push to `github.com/ifreakingampsv/Glados`
    (remote `origin`). `CODING_STANDARDS.md` is read during review; the pre-commit hook
    (husky) runs lint-staged + typecheck + tests — never bypass it without saying why.
+
+## Interaction preferences (any host)
+
+- English only — never mix other languages into responses.
+- A pasted error gets what / why / fix in simple language, in that order, before any fix.
+- Keep replies short and dense — the user is latency-sensitive.

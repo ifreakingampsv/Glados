@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { db, type ProviderRoute } from "@/lib/db";
 import { getConfig } from "@/services/levels";
 import { deductEnergy, ensureDailyGrant, todayUtc } from "@/services/energy";
@@ -18,10 +19,18 @@ export interface GatewayCallInput {
   messages: GatewayMessage[];
   interactive?: boolean; // UI call (fallback consent possible) vs queued job
   forcePlatform?: boolean; // set AFTER the user pressed the fallback button (D34)
+  cacheKey?: string; // D4 content-hash cache key
+  skipEnergy?: boolean; // D60: attractor/free-capped calls never drain energy bars
 }
 
 export type GatewayResult =
-  | { status: "ok"; content: string; usageId: string; via: "byo" | "platform" }
+  | {
+      status: "ok";
+      content: string;
+      usageId: string;
+      via: "byo" | "platform";
+      cached?: boolean;
+    }
   | {
       status: "byo_failed";
       provider: string;
@@ -45,6 +54,14 @@ export class ProviderHttpError extends Error {
   ) {
     super(`provider ${status}: ${body.slice(0, 200)}`);
   }
+}
+
+export function hashContentForCache(prefix: string, payload: string): string {
+  const digest = crypto
+    .createHash("sha256")
+    .update(payload, "utf8")
+    .digest("hex");
+  return `${prefix}:${digest}`;
 }
 
 async function resolveRoute(feature: string): Promise<ProviderRoute> {
@@ -108,7 +125,8 @@ async function meter(
   userId: string,
   route: ProviderRoute,
   response: ProviderResponse,
-  via: "byo" | "platform"
+  via: "byo" | "platform",
+  skipEnergy = false
 ): Promise<string> {
   const barUsd = await getConfig<number>("energy.barUsd", 0.1);
   const costUsd =
@@ -132,8 +150,8 @@ async function meter(
       update: { count: { increment: 1 } },
       create: { userId, date: todayUtc(), count: 1 },
     });
-    if (via === "platform") {
-      // BYO users are exempt (D28): their key, their money.
+    if (via === "platform" && !skipEnergy) {
+      // BYO users and attractor calls (D60) are exempt from energy deduction.
       await deductEnergy(userId, costUsd / barUsd, tx);
     }
     return usage.id;
@@ -168,6 +186,22 @@ export async function gatewayCall(
   fetchImpl: typeof fetch = fetch
 ): Promise<GatewayResult> {
   await checkFlag(input.feature);
+
+  if (input.cacheKey) {
+    const cached = await db.gatewayCache.findUnique({
+      where: { cacheKey: input.cacheKey },
+    });
+    if (cached) {
+      return {
+        status: "ok",
+        content: cached.content,
+        usageId: "cached",
+        via: "platform",
+        cached: true,
+      };
+    }
+  }
+
   const route = await resolveRoute(input.feature);
 
   const byoKey = await getDecryptedCredential(input.userId, route.provider);
@@ -180,7 +214,24 @@ export async function gatewayCall(
         input.messages,
         fetchImpl
       );
-      const usageId = await meter(input.userId, route, response, "byo");
+      const usageId = await meter(
+        input.userId,
+        route,
+        response,
+        "byo",
+        input.skipEnergy
+      );
+      if (input.cacheKey) {
+        await db.gatewayCache.upsert({
+          where: { cacheKey: input.cacheKey },
+          update: { content: response.content, feature: input.feature },
+          create: {
+            cacheKey: input.cacheKey,
+            feature: input.feature,
+            content: response.content,
+          },
+        });
+      }
       return { status: "ok", content: response.content, usageId, via: "byo" };
     } catch (error) {
       if (error instanceof ProviderHttpError) {
@@ -206,13 +257,32 @@ export async function gatewayCall(
       `no platform key configured for provider: ${route.provider}`
     );
   }
-  await ensureDailyGrant(input.userId); // lazy 1-bar/day grant before deduction
+  if (!input.skipEnergy) {
+    await ensureDailyGrant(input.userId); // lazy 1-bar/day grant before deduction
+  }
   const response = await callOpenAI(
     route,
     platformKey,
     input.messages,
     fetchImpl
   );
-  const usageId = await meter(input.userId, route, response, "platform");
+  const usageId = await meter(
+    input.userId,
+    route,
+    response,
+    "platform",
+    input.skipEnergy
+  );
+  if (input.cacheKey) {
+    await db.gatewayCache.upsert({
+      where: { cacheKey: input.cacheKey },
+      update: { content: response.content, feature: input.feature },
+      create: {
+        cacheKey: input.cacheKey,
+        feature: input.feature,
+        content: response.content,
+      },
+    });
+  }
   return { status: "ok", content: response.content, usageId, via: "platform" };
 }

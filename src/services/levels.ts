@@ -18,6 +18,10 @@ export const DEFAULT_POINTS: Record<string, number> = {
   interview_passed: 10,
   quiz_completed: 2,
   system_adjustment: 0,
+  repo_imported: 5,
+  work_experience_added: 4,
+  work_experience_confirmed: 2,
+  resume_imported: 0,
 };
 
 export const DEFAULT_SOURCE_WEIGHTS: Record<string, number> = {

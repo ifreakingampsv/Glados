@@ -1,5 +1,6 @@
 import { seedCanonicalSkills } from "../src/services/seed-skills";
 import { seedConfig, seedRoutes } from "../src/services/seed-config";
+import { backfillProjectSkills } from "../src/services/projects";
 import { stopBoss } from "../src/lib/boss";
 import { db } from "../src/lib/db";
 
@@ -7,13 +8,14 @@ async function main() {
   await seedCanonicalSkills();
   await seedConfig();
   await seedRoutes();
+  const backfill = await backfillProjectSkills();
   const [skills, config, routes] = await Promise.all([
     db.skill.count({ where: { status: "ACTIVE" } }),
     db.config.count(),
     db.providerRoute.count(),
   ]);
   console.log(
-    `seeded: ${skills} active skills, ${config} config rows, ${routes} routes`
+    `seeded: ${skills} active skills, ${config} config rows, ${routes} routes (${backfill.updatedProjects} projects backfilled)`
   );
   await stopBoss();
   await db.$disconnect();

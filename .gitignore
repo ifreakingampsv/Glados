@@ -16,3 +16,6 @@ dist/
 out/
 .v2c/
 tsconfig.tsbuildinfo
+
+# VibeWise Antigravity plugin bundle (reinstallable, machine-level code)
+.agents/plugins/vibe-wise/

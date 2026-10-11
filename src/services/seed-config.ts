@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import {
   DEFAULT_BANDS,
@@ -5,9 +6,57 @@ import {
   DEFAULT_SOURCE_WEIGHTS,
 } from "@/services/levels";
 
-// Seed only: never overwrites an already-tuned config row.
+export const DEFAULT_ATTRACTOR_CAPS: Record<string, number> = {
+  jd_scan: 5,
+  resume_scan: 3,
+  linkedin_review: 1,
+  anonymous_scan: 2,
+};
+
+export const DEFAULT_FIT_WEIGHTS = {
+  evidenced: 1.0,
+  claim: 0.5,
+  expectedLevel: 3,
+};
+
+export const DEFAULT_PROFILE_STRONG_THRESHOLD = {
+  minEvidencedSkills: 3,
+  minLevel: 1,
+  minProjectsWithSkills: 1,
+};
+
+export const DEFAULT_WORK_EXP_SCORER = {
+  jobBasePoints: 4,
+  internshipBasePoints: 2,
+  maxYearsMultiplier: 3,
+  minSpecMultiplier: 0.5,
+  maxSpecMultiplier: 2.0,
+  depthCharsForFull: 200,
+  stackMentionsForFull: 2,
+};
+
+export const DEFAULT_SHRINK_BOUNDS = {
+  minFontPt: 9.5,
+  defaultFontPt: 11,
+  minLineHeight: 1.2,
+  defaultLineHeight: 1.45,
+  minMarginIn: 0.4,
+  defaultMarginIn: 0.65,
+  maxCharsPerPage: 3400,
+};
+
+export const DEFAULT_ECONOMICS_ASSUMPTIONS = {
+  activeUsers: 50,
+  scansPerUserPerDay: 1,
+  reviewsPerUserPerDay: 0.2,
+  fixedServerCostUsd: 5,
+  targetMargin: 0.5,
+};
+
+// Seed only: never overwrites an already-tuned config row, but merges newly
+// introduced S1 dictionary keys into points.types and attractor.caps.
 export async function seedConfig() {
-  const rows = [
+  const rows: Array<{ key: string; value: unknown }> = [
     { key: "levels.bands", value: DEFAULT_BANDS },
     { key: "points.types", value: DEFAULT_POINTS },
     { key: "points.sourceWeights", value: DEFAULT_SOURCE_WEIGHTS },
@@ -16,14 +65,49 @@ export async function seedConfig() {
     { key: "energy.earnWeekly", value: 1 },
     { key: "energy.bankCap", value: 3 },
     { key: "energy.barUsd", value: 0.1 },
-    { key: "attractor.caps", value: { jd_scan: 5, resume_scan: 3 } },
+    { key: "attractor.caps", value: DEFAULT_ATTRACTOR_CAPS },
     { key: "budget.monthlyUsd", value: 5 },
     { key: "budget.alertUsd", value: 4 },
+    // S1 tunables (D58, D60, D61, D69, D71, D73, D43)
+    { key: "scanner.anonymousDailyCap", value: 2 },
+    { key: "scanner.anonymousTtlDays", value: 30 },
+    { key: "linkedin.dailyCap", value: 1 },
+    { key: "imports.githubCap", value: 25 },
+    { key: "jd.softCap", value: 20 },
+    { key: "gap.fitWeights", value: DEFAULT_FIT_WEIGHTS },
+    {
+      key: "gap.profileStrongThreshold",
+      value: DEFAULT_PROFILE_STRONG_THRESHOLD,
+    },
+    { key: "workExperience.scorer", value: DEFAULT_WORK_EXP_SCORER },
+    { key: "resume.shrinkBounds", value: DEFAULT_SHRINK_BOUNDS },
+    { key: "economics.assumptions", value: DEFAULT_ECONOMICS_ASSUMPTIONS },
   ];
+
   for (const row of rows) {
     const existing = await db.config.findUnique({ where: { key: row.key } });
     if (!existing) {
-      await db.config.create({ data: row });
+      await db.config.create({
+        data: {
+          key: row.key,
+          value: row.value as unknown as Prisma.InputJsonValue,
+        },
+      });
+    } else if (
+      (row.key === "points.types" || row.key === "attractor.caps") &&
+      existing.value &&
+      typeof existing.value === "object" &&
+      !Array.isArray(existing.value)
+    ) {
+      const currentObj = existing.value as Record<string, number>;
+      const defaultsObj = row.value as Record<string, number>;
+      const merged = { ...defaultsObj, ...currentObj };
+      if (Object.keys(merged).length !== Object.keys(currentObj).length) {
+        await db.config.update({
+          where: { key: row.key },
+          data: { value: merged as unknown as Prisma.InputJsonValue },
+        });
+      }
     }
   }
 }
@@ -63,6 +147,42 @@ const ROUTES: Array<{
     endpoint: "https://api.atriadawn.example/v1/chat/completions",
     costPer1kUsd: 0,
     isActive: false, // endpoint unverified (D26 open detail)
+  },
+  {
+    feature: "skill_definition",
+    provider: "google",
+    model: "gemini-2.0-flash",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    costPer1kUsd: 0.0005,
+    isActive: true,
+  },
+  {
+    feature: "resume_parse",
+    provider: "google",
+    model: "gemini-2.0-flash",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    costPer1kUsd: 0.001,
+    isActive: true,
+  },
+  {
+    feature: "jd_extract",
+    provider: "google",
+    model: "gemini-2.0-flash",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    costPer1kUsd: 0.001,
+    isActive: true,
+  },
+  {
+    feature: "linkedin_review",
+    provider: "google",
+    model: "gemini-2.0-flash",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    costPer1kUsd: 0.0015,
+    isActive: true,
   },
 ];
 

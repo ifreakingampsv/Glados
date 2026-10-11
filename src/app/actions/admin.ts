@@ -5,12 +5,13 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import {
   approveCandidate,
+  generateMissingSkillDefinitions,
   mergeCandidate,
   rejectCandidate,
 } from "@/services/skill-admin";
 import { createInviteCode } from "@/services/waitlist";
-import { runSmokeProbe } from "@/services/probe";
-import { db } from "@/lib/db";
+import { runSmokeProbe, setFeatureFlag } from "@/services/probe";
+import { runStorageProbe } from "@/services/storage";
 
 export async function approveCandidateAction(formData: FormData) {
   const user = await getSessionUser();
@@ -49,11 +50,7 @@ export async function setFlagAction(formData: FormData) {
   if (!user || user.role !== "ADMIN") return;
   const key = String(formData.get("key") ?? "");
   const enabled = String(formData.get("enabled") ?? "") === "true";
-  await db.featureFlag.upsert({
-    where: { key },
-    update: { enabled },
-    create: { key, enabled },
-  });
+  await setFeatureFlag(user, key, enabled);
   revalidatePath("/admin");
 }
 
@@ -69,4 +66,36 @@ export async function runSmokeProbeAction() {
         ? `via ${result.via} — ${usage?.inputTokens}/${usage?.outputTokens} tokens, $${usage?.costUsd.toFixed(5)}`
         : result.message,
   };
+}
+
+export async function runStorageProbeAction() {
+  const user = await getSessionUser();
+  if (!user) redirect("/");
+  const probe = await runStorageProbe(user);
+  revalidatePath("/admin");
+  return {
+    status: probe.ok ? "ok" : "failed",
+    message: probe.ok
+      ? `R2 probe passed: uploaded, verified (${probe.bytesVerified} bytes), signed (${probe.signedUrlExpiresSeconds}s TTL), and deleted ${probe.key}`
+      : `R2 probe failed on ${probe.key}`,
+  };
+}
+
+export async function generateDefinitionsAction() {
+  const user = await getSessionUser();
+  if (!user) redirect("/");
+  try {
+    const res = await generateMissingSkillDefinitions(user, fetch, 10);
+    revalidatePath("/admin");
+    return {
+      status: "ok",
+      message: `Generated ${res.generated} new definition(s). Coverage: ${res.withDefinition}/${res.totalActive} active skills.`,
+    };
+  } catch (err) {
+    return {
+      status: "error",
+      message:
+        err instanceof Error ? err.message : "Definition generation failed",
+    };
+  }
 }

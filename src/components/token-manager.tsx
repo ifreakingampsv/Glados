@@ -11,8 +11,9 @@ export function TokenCreator() {
   const [pending, startTransition] = useTransition();
 
   return (
-    <div style={{ margin: "1rem 0" }}>
+    <div className="stack">
       <form
+        className="row"
         onSubmit={(e) => {
           e.preventDefault();
           startTransition(async () => {
@@ -28,16 +29,21 @@ export function TokenCreator() {
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="token name (e.g. antigravity)"
+          placeholder="Token name (e.g. antigravity)"
+          aria-label="Token name"
         />
-        <button type="submit" disabled={pending || !name.trim()}>
-          Create token
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={pending || !name.trim()}
+        >
+          {pending ? "Minting..." : "Create token"}
         </button>
       </form>
       {created && (
-        <p style={{ background: "#f4f4e8", padding: "0.5rem" }}>
-          Copy it NOW — shown only once: <code>{created}</code>
-        </p>
+        <div className="alert alert-warning" role="status">
+          Copy this token now (shown only once): <code>{created}</code>
+        </div>
       )}
     </div>
   );
@@ -49,6 +55,7 @@ export function TokenRevoke({ tokenId }: { tokenId: string }) {
   return (
     <button
       type="button"
+      className="btn btn-sm btn-danger"
       disabled={pending}
       onClick={() =>
         startTransition(async () => {
@@ -57,7 +64,7 @@ export function TokenRevoke({ tokenId }: { tokenId: string }) {
         })
       }
     >
-      revoke
+      {pending ? "Revoking..." : "Revoke"}
     </button>
   );
 }

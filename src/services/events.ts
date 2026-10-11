@@ -8,15 +8,20 @@ import {
   recomputeUserSkill,
 } from "@/services/levels";
 
-// Fixed vocabulary (D25). skill_tagged/project_added carry zero points: they
-// are history, not evidence — idle clicks can't farm the earned bar (D36).
+// Fixed vocabulary (D25 + S1). skill_tagged, project_added, and resume_imported
+// carry zero points: they are history/audit, not evidence — idle clicks can't
+// farm the earned bar (D36).
 export const EVENT_TYPES = [
   "skill_tagged",
   "project_added",
   "manual_evidence",
   "interview_passed", // reserved for S2
-  "quiz_completed", // reserved for S4
+  "quiz_completed", // reserved for S1.5 / S4
   "system_adjustment",
+  "repo_imported",
+  "work_experience_added",
+  "work_experience_confirmed",
+  "resume_imported", // audit only, 0 points
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
@@ -30,11 +35,13 @@ export async function basePoints(
   type: EventType,
   source: Source
 ): Promise<number> {
+  if (type === "resume_imported") return 0;
   const [types, weights] = await Promise.all([
     getConfig("points.types", DEFAULT_POINTS),
     getConfig("points.sourceWeights", DEFAULT_SOURCE_WEIGHTS),
   ]);
-  return Math.round((types[type] ?? 0) * (weights[source] ?? 0));
+  const base = types[type] ?? DEFAULT_POINTS[type] ?? 0;
+  return Math.round(base * (weights[source] ?? 0));
 }
 
 export interface AppendEventInput {
@@ -44,6 +51,7 @@ export interface AppendEventInput {
   skills?: string[];
   occurredAt?: Date;
   payload?: Record<string, unknown>;
+  pointsOverride?: number;
 }
 
 export async function appendEvent(input: AppendEventInput): Promise<EventLog> {
@@ -59,11 +67,18 @@ export async function appendEvent(input: AppendEventInput): Promise<EventLog> {
       ? input.occurredAt
       : new Date();
 
+  const computedPoints =
+    input.type === "resume_imported"
+      ? 0
+      : input.pointsOverride !== undefined
+        ? Math.max(0, Math.round(input.pointsOverride))
+        : await basePoints(input.type, input.source);
+
   const event = await db.eventLog.create({
     data: {
       userId: input.userId,
       type: input.type,
-      points: await basePoints(input.type, input.source),
+      points: computedPoints,
       occurredAt,
       source: input.source,
       skills: input.skills ?? [],

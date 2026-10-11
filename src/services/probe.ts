@@ -25,3 +25,16 @@ export async function runSmokeProbe(
       : null;
   return { result, usage };
 }
+
+export async function setFeatureFlag(
+  admin: User,
+  key: string,
+  enabled: boolean
+) {
+  assertAdmin(admin);
+  return db.featureFlag.upsert({
+    where: { key },
+    update: { enabled },
+    create: { key, enabled },
+  });
+}

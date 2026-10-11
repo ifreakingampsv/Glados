@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSessionUser } from "@/lib/auth";
 import { joinWaitlist, redeemInviteCode } from "@/services/waitlist";
+import { claimCookieScanAction } from "@/app/actions/scanner";
 
 export async function joinWaitlistAction(formData: FormData) {
   const email = String(formData.get("email") ?? "");
@@ -22,6 +23,7 @@ export async function redeemCodeAction(formData: FormData) {
   const code = String(formData.get("code") ?? "");
   try {
     await redeemInviteCode(user, code);
+    await claimCookieScanAction();
   } catch {
     redirect("/waitlist?error=bad-code");
   }

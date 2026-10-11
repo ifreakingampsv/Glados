@@ -12,29 +12,61 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await getSessionUser();
   if (isClerkConfigured() && user && !isGateOpen(user)) {
     return (
-      <main>
+      <main className="section-card">
         <h1>Invite required</h1>
-        <p>
-          You&apos;re signed in but not yet invited. Join the waitlist or redeem
-          your code.
+        <p className="lede">
+          You are signed in, but your account has not redeemed an invite code
+          yet.
         </p>
-        <Link href="/waitlist">Redeem an invite code →</Link>
+        <Link href="/waitlist" className="btn btn-primary">
+          Redeem an invite code
+        </Link>
       </main>
     );
   }
   return (
     <>
-      <nav style={{ marginBottom: "1.5rem", display: "flex", gap: "1rem" }}>
-        <Link href="/profile">Profile</Link>
-        <Link href="/projects">Projects</Link>
-        <Link href="/skills">Skills</Link>
-        <Link href="/events">Events</Link>
-        <Link href="/gateway">AI&nbsp;Keys</Link>
-        <Link href="/tokens">Tokens</Link>
-        <Link href="/admin">Admin</Link>
-      </nav>
+      <header className="site-header">
+        <Link href="/" className="brand-mark">
+          GLaDOS
+        </Link>
+        <nav className="site-nav" aria-label="Workspace navigation">
+          <Link href="/profile" className="nav-link">
+            Profile
+          </Link>
+          <Link href="/projects" className="nav-link">
+            Projects
+          </Link>
+          <Link href="/skills" className="nav-link">
+            Skills
+          </Link>
+          <Link href="/gaps" className="nav-link">
+            Gap Map
+          </Link>
+          <Link href="/resume" className="nav-link">
+            Resume
+          </Link>
+          <Link href="/linkedin" className="nav-link">
+            LinkedIn
+          </Link>
+          <Link href="/events" className="nav-link">
+            Events
+          </Link>
+          <Link href="/gateway" className="nav-link">
+            AI Keys
+          </Link>
+          <Link href="/tokens" className="nav-link">
+            Tokens
+          </Link>
+          <Link href="/admin" className="nav-link">
+            Admin
+          </Link>
+        </nav>
+      </header>
       {!isClerkConfigured() && (
-        <p style={{ color: "#a66" }}>dev mode: no auth configured</p>
+        <div className="alert alert-warning" role="status">
+          Local dev mode: Clerk keys are not configured.
+        </div>
       )}
       {children}
     </>
