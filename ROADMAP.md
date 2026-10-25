@@ -3,6 +3,9 @@
 > The slice tracker. Design decisions live in `docs/DECISIONS.md`; per-slice contracts
 > live in `specs/`; tickets live in `.scratch/<slice-slug>/issues/`. Update status as
 > slices move: `backlog → designing → specced → building → shipped`.
+> Status ownership: implementation chats set `building` when they start; only the
+> verification-and-close chat (checks green + walkthrough ready + pushed) sets
+> `shipped`.
 
 ## The product in one line
 

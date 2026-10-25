@@ -22,14 +22,20 @@ Context lives in files, not in any chat. Read what your role needs — never eve
 2. Reference by path + [D#] / section — never paste file contents into chat.
 3. Per-slice workflow: design (VibeWise ON) → `/grill-with-docs` → `/to-spec` →
    `/to-tickets` → implementation chats ("VibeWise paused — work the frontier") →
-   update ROADMAP status → optional `/retro`.
+   update ROADMAP status → optional `/retro`. GATE: before `/to-spec`, verify
+   DECISIONS.md contains the slice's grill-outcomes section — a kickoff prompt
+   naming `/to-spec` never substitutes for the grill.
 4. Product naming: GLaDOS is an internal codename only (Valve trademark). The rename
    checklist in DECISIONS.md OQ7 fires before any public step (domain purchase,
    marketing, store listing).
-5. Slice closing (every slice): refresh `README.md` as the GitHub-facing doc for what
-   the slice added, commit the work, and push to `github.com/ifreakingampsv/Glados`
-   (remote `origin`). `CODING_STANDARDS.md` is read during review; the pre-commit hook
-   (husky) runs lint-staged + typecheck + tests — never bypass it without saying why.
+5. Slice closing (every slice): write the slice's hands-on checklist under
+   `docs/walkthroughs/<slice>.md` (input → expected output per feature), refresh
+   `README.md` as the GitHub-facing doc for what the slice added, commit the work,
+   and push to `github.com/ifreakingampsv/Glados` (remote `origin`). The slice is
+   not "shipped" until the user has walked its checklist hands-on — ROADMAP shows
+   `building` until that walk passes, then `shipped`. `CODING_STANDARDS.md` is read
+   during review; the pre-commit hook (husky) runs lint-staged + typecheck +
+   tests — never bypass it without saying why.
 
 ## Interaction preferences (any host)
 
