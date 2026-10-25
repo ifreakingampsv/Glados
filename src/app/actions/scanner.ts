@@ -10,7 +10,7 @@ import {
   type ScannerResult,
 } from "@/services/scanner";
 
-export const ANON_SCAN_COOKIE = "glados_anon_scan";
+const ANON_SCAN_COOKIE = "glados_anon_scan";
 
 export async function runScannerAction(
   jdText: string,
