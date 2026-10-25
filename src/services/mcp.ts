@@ -99,6 +99,18 @@ export const MCP_TOOLS: McpToolDef[] = [
       required: ["projectId", "choice", "rationale", "userConfirmed"],
     },
   },
+  {
+    name: "get_rebuild_shortlist",
+    description:
+      "Pull the user's shelf shortlist — rebuildable OSS repos matched to their evidenced skills and target role (deterministic platform-side match, read-only). Use it to run the flagship deep-dive yourself: pick a repo, study it, and produce why-memorable / modification-ideas / learning-payoff. Generates nothing, writes nothing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["strengths", "gaps"] },
+        archetype: { type: "string" },
+      },
+    },
+  },
 ];
 
 export async function mcpStartInterviewSession(
@@ -345,5 +357,48 @@ export async function mcpSaveDecisionRecord(
     id: record.id,
     status: record.status,
     note: "claim-tier — sharpens grading, never evidence",
+  };
+}
+
+// S3a (D95/D96i): the shelf shortlist over MCP — read-only, thin over the
+// same match service the website calls; NO impression writes, NO generation.
+// The harness is expected to run the flagship deep-dive itself (D29 split).
+export async function mcpGetRebuildShortlist(
+  userId: string,
+  input: { mode?: string; archetype?: string }
+) {
+  const { isDiscoverEnabled } = await import("@/services/shelf");
+  if (!(await isDiscoverEnabled())) {
+    return { disabled: true, note: "the discover feature flag is off" };
+  }
+  const { getDiscoverCards } = await import("@/services/shelf-match");
+  const mode =
+    input.mode === "gaps"
+      ? "gaps"
+      : input.mode === "strengths"
+        ? "strengths"
+        : undefined;
+  const res = await getDiscoverCards(userId, { mode, logImpressions: false });
+  return {
+    fallback: res.fallback,
+    gapsMode: res.gapsMode,
+    archetypeHint: input.archetype ?? null,
+    cards: res.cards.map((c) => ({
+      repo: c.fullName,
+      url: c.htmlUrl,
+      stars: c.stars,
+      band: c.bandKey,
+      language: c.language,
+      lane:
+        c.laneList && c.crossListCount > 1
+          ? `vouched by ${c.crossListCount} lists`
+          : c.laneList
+            ? "curated list"
+            : "hidden gem",
+      why: c.fitLines,
+      stretch: c.stretch,
+      annotation: c.annotation,
+    })),
+    note: "run the deep-dive on YOUR model; paste the brief back via the website's save-note box",
   };
 }

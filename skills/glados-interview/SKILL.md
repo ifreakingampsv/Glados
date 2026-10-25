@@ -58,3 +58,14 @@ tokens; nothing changes platform-side. Text always works.
 - NEVER write evidence on the platform's behalf: there is no tool for it, by
   design.
 - The bank comes from the platform — don't invent your own questions.
+
+## Pull your rebuild shortlist (S3a)
+
+The server also exposes `get_rebuild_shortlist` — the same matched shelf the
+website's Discover page shows: rebuildable OSS repos matched to the user's
+evidenced skills and target role. Ask your agent: _"Pull my GLaDOS rebuild
+shortlist, deep-dive the top repo, and give me why-it's-memorable, 3–5
+modifications, and what I'd learn."_ The match is deterministic and
+platform-side; the deep-dive runs on YOUR tokens. Paste the resulting brief
+into Discover → "Save a flagship brief" so it lands on the spine as a note.
+The tool is read-only — it never writes evidence.

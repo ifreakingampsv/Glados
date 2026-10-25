@@ -7,7 +7,35 @@ preferences, and an append-only event log) that every feature slice reads and wr
 > `GLaDOS` is an internal codename (Valve owns the Portal trademark). A rename checklist
 > fires before any public launch step (`docs/DEPLOY.md`).
 
-**Current status: [S0 — Spine], [S1 — Imports, Gap Map, Free Scanner & Resume Builder] & [S1.5 — Calibration Layer] shipped** (S1.5: built 2026-10-12, verified 2026-10-25). **S2 — Interview AI: built, awaiting the hands-on walkthrough.** Next up: S3a (OSS recommender). Full plan: [`ROADMAP.md`](ROADMAP.md).
+**Current status: [S0 — Spine], [S1 — Imports, Gap Map, Free Scanner & Resume Builder] & [S1.5 — Calibration Layer] shipped** (S1.5: built 2026-10-12, verified 2026-10-25). **S2 — Interview AI and S3a — OSS shelf/Discover: built, awaiting the hands-on walkthrough.** Next up: S3b (guided rebuild). Full plan: [`ROADMAP.md`](ROADMAP.md).
+
+---
+
+## What S3a adds on top of S2 (OSS shelf + Discover)
+
+- **The shelf** — a shared, platform-built corpus of rebuildable OSS repos,
+  collected nightly through two lanes: curated lists (build-your-own-x,
+  project-based-learning) and an archetype-driven grid of hard-qualified
+  GitHub searches (anti-generic gates kill wrapper clones before scoring).
+- **Deterministic scoring** — config-row weights over recency, star velocity
+  (within star band), tests/CI, docs, license; lane trust flags (cross-list
+  vouch vs hidden-gem velocity). One AI layer only: per-repo annotations
+  (why memorable, modification ideas, learning payoff), cached by repo+sha,
+  never reordering anything.
+- **Spine matching** — `/discover` shows your top-5 matched repos with honest
+  provenance labels (evidenced / claimed / target-role fit), a stretch badge
+  one level above your evidenced skills, a persisted "aim at my gaps" toggle,
+  and an empty-spine fallback to the global shelf. Free + uncapped.
+- **Flagship handoff** — every card copies your deep-dive prompt pre-filled
+  (your AI, your tokens, platform $0); the brief pastes back as a note
+  (D39's first writer).
+- **Picks** — a study list (considering → building → dropped), never a
+  project, never evidence; S3b's guided rebuild opens from here.
+- **MCP** — `get_rebuild_shortlist`, the sixth read-only tool.
+- **Night jobs** — `shelf_nightly` (grid → enrich → score → annotate) +
+  `shelf_lists` (weekly), both idempotent and behind the single `discover`
+  feature flag; telemetry readouts (CTR with minimums, top-unmatched topics)
+  on the admin console.
 
 ---
 

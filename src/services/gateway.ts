@@ -193,12 +193,13 @@ async function checkBudgetAlert(): Promise<void> {
   }
 }
 
-// D78f: Shared-cache features (skill_definition, bank_gen, cert_course_map)
-// route PLATFORM-only so a BYO user never funds a shared asset.
+// D78f: Shared-cache features (skill_definition, bank_gen, cert_course_map,
+// repo_annotate) route PLATFORM-only so a BYO user never funds a shared asset.
 export const PLATFORM_ONLY_FEATURES = new Set([
   "skill_definition",
   "bank_gen",
   "cert_course_map",
+  "repo_annotate",
 ]);
 
 export async function gatewayCall(

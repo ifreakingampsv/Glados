@@ -182,3 +182,39 @@ until graded.
 **Surface**:
 Which front door a session used — the website or the user's own harness via MCP.
 _Avoid_: "source" (that's the event-log trust channel).
+
+## OSS recommender (S3a)
+
+**Shelf**:
+The shared corpus of candidate rebuildable repos that every user's cards come
+from. _Avoid_: "library" (the ROADMAP's older word for the same thing).
+
+**Lane**:
+How a repo entered the shelf — curated-list ingester or search grid; stored as
+provenance + trust flags, never as separate UIs.
+
+**Archetype**:
+A named bundle of search ingredients (topics, languages, star bands) plus
+target-role title patterns; the night job's query grid is built from them.
+Grown one row at a time, never a pre-built taxonomy.
+
+**Star band**:
+A star-count pool (e.g. 50–300, 300–1500, 1500–8000); velocity is compared
+within a band, never across the whole shelf.
+
+**Annotation**:
+The once-per-repo AI card text — why memorable, modification ideas, learning
+payoff; cached by repo + branch sha; decorates cards, never ranks them.
+_Avoid_: "brief" (that's the flagship prompt's output).
+
+**Flagship prompt**:
+The user's own deep-dive prompt, copied pre-filled from a card; its output is
+pasted back and saved as a note.
+
+**Pick**:
+A study-list row on a shelf repo (considering → building → dropped); never a
+project, never evidence.
+
+**Stretch badge**:
+Card marker for a repo one level above the user's evidenced level on the
+matching skills.

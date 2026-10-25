@@ -113,6 +113,8 @@ export const KNOWN_PREFERENCE_KEYS = [
   "timezone",
   "briefing_enabled",
   "gap_map_mode",
+  "discover_gaps_mode", // S3a (D93): "on" ranks gap-skilled repos up top
+  "discover_archetypes", // S3a (D96d): explicit archetype picks, comma-joined; beat inference (D73)
 ] as const;
 
 export async function setPreference(

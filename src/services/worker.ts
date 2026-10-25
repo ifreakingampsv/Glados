@@ -23,6 +23,14 @@ import {
   interviewStorageReadout,
   tierInterviewTranscripts,
 } from "@/services/interview-tiering";
+import {
+  SHELF_LISTS_CRON,
+  SHELF_LISTS_QUEUE,
+  SHELF_NIGHTLY_CRON,
+  SHELF_NIGHTLY_QUEUE,
+  runNightlyPipeline,
+  runWeeklyListIngest,
+} from "@/services/shelf-pipeline";
 
 export const EVAL_DRIFT_QUEUE = "interview_eval_drift";
 export const EVAL_DRIFT_CRON = "0 5 * * 1"; // Mondays 05:00 UTC — paid run, weekly (D88g)
@@ -120,6 +128,32 @@ registerQueueProcessor(TIERING_QUEUE, async (data: { force?: boolean }) => {
   return { tiered: result.tiered };
 });
 
+// S3a: the shelf night job (grid → enrich → score → annotate) and the weekly
+// curated-list re-ingest (D90/D96i). Both skip gracefully when the discover
+// flag is off or GH_DISCOVERY_TOKEN is absent — a dev box never throws.
+registerQueueProcessor(SHELF_NIGHTLY_QUEUE, async () => {
+  const res = (await runNightlyPipeline()) as {
+    skipped?: string;
+    grid?: { queries: number };
+    annotations?: { annotated: number };
+  };
+  return res.skipped
+    ? { skipped: res.skipped }
+    : {
+        grid: res.grid?.queries ?? 0,
+        annotated: res.annotations?.annotated ?? 0,
+      };
+});
+registerQueueProcessor(SHELF_LISTS_QUEUE, async () => {
+  const res = (await runWeeklyListIngest()) as {
+    skipped?: string;
+    upserted?: number;
+  };
+  return res.skipped
+    ? { skipped: res.skipped }
+    : { upserted: res.upserted ?? 0 };
+});
+
 export async function setupWorkerQueues(): Promise<void> {
   const boss = await getBoss();
   for (const queueName of registry.keys()) {
@@ -146,6 +180,18 @@ export async function setupWorkerQueues(): Promise<void> {
   await boss.schedule(
     BRIEFING_QUEUE,
     BRIEFING_CRON,
+    { scheduled: true },
+    { tz: "UTC" }
+  );
+  await boss.schedule(
+    SHELF_NIGHTLY_QUEUE,
+    SHELF_NIGHTLY_CRON,
+    { scheduled: true },
+    { tz: "UTC" }
+  );
+  await boss.schedule(
+    SHELF_LISTS_QUEUE,
+    SHELF_LISTS_CRON,
     { scheduled: true },
     { tz: "UTC" }
   );

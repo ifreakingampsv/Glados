@@ -517,3 +517,114 @@ model DecisionRecord {
 
   @@index([userId, projectId])
 }
+
+// S3a (D90–D96): the OSS shelf. The corpus is GLOBAL (no user_id) — a shared
+// asset per the locked economics; lanes + trust flags per D92; skills[] are
+// canonical ids assigned at enrich time through the read-only ladder (D91/D96a).
+model Repo {
+  id              String    @id @default(cuid())
+  githubId        Int       @unique
+  fullName        String    @unique // owner/name
+  description     String?
+  htmlUrl         String
+  stars           Int       @default(0)
+  language        String?
+  topics          String[]  @default([]) // raw GitHub topics (debug + readouts)
+  skills          String[]  @default([]) // canonical skill ids (enrich-time)
+  forks           Int       @default(0)
+  isFork          Boolean   @default(false)
+  archived        Boolean   @default(false)
+  license         String? // spdx id
+  sizeKb          Int       @default(0)
+  hasTests        Boolean   @default(false)
+  hasCi           Boolean   @default(false)
+  readmeChars     Int       @default(0)
+  readmeExcerpt   String? // first ~1.5k chars — annotator input only
+  defaultBranch   String    @default("main")
+  sha             String? // default-branch head at last enrich
+  pushedAt        DateTime?
+  bandKey         String? // star band at last enrich (underrated | solid | established)
+  velocityPerWeek Float     @default(0)
+  velocityPct     Float? // percentile within band (D92)
+  laneList        Boolean   @default(false)
+  laneSearch      Boolean   @default(false)
+  crossListCount  Int       @default(0)
+  score           Float     @default(0)
+  shelfEligible   Boolean   @default(true)
+  lastEnrichedAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([shelfEligible, score])
+  @@index([skills], type: Gin)
+  @@index([language])
+}
+
+// S3a (D91/D96f): which curated lists contain a repo. lastSeenAt freshness IS
+// the vouch — a repo dropped from a list loses its vouch at the next re-ingest.
+model RepoListMembership {
+  id           String   @id @default(cuid())
+  repoGithubId Int
+  listKey      String
+  lastSeenAt   DateTime @default(now())
+
+  @@unique([repoGithubId, listKey])
+  @@index([listKey, lastSeenAt])
+}
+
+// S3a (D92/D96f): the once-per-repo AI annotation, cached by repo + branch
+// sha. Decorates cards; NEVER affects rank order (D30 family).
+model RepoAnnotation {
+  repoGithubId    Int      @id
+  sha             String
+  memorableWhy    String
+  modificationIdeas Json // string[]
+  learningPayoff  String
+  generatedAt     DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// S3a (D94/D96f): study-list picks. NOT projects (D55b: nothing auto-creates
+// projects) and NEVER evidence — zero event_log writes from browsing/picking.
+// S3b's "start rebuilding" promotes a pick into a real Project.
+model ProjectPick {
+  id           String   @id @default(cuid())
+  userId       String
+  repoGithubId Int
+  status       String   @default("considering") // considering | building | dropped
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, repoGithubId])
+  @@index([userId, status])
+}
+
+// S3a (D95/D96): shown/clicked telemetry for discover cards — its own table,
+// NEVER the event log (analytics, not evidence); aggregate-only readouts (D77).
+model RecImpression {
+  id           String    @id @default(cuid())
+  userId       String
+  repoGithubId Int
+  archetypeKey String?
+  shownAt      DateTime  @default(now())
+  clickedAt    DateTime?
+
+  @@index([repoGithubId, shownAt])
+  @@index([userId, shownAt])
+}
+
+// S3a (D96b): D39's first writer — minimal manual-capture notes (paste the
+// flagship brief back, save it). S4 adds FSRS scheduling and full surfaces.
+model Note {
+  id           String   @id @default(cuid())
+  userId       String
+  source       String   @default("flagship_brief") // flagship_brief | manual
+  title        String
+  content      String
+  skillId      String?
+  repoGithubId Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}

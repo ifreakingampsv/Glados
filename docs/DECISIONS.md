@@ -1310,6 +1310,258 @@ Slice design complete. GRILL COMPLETE same day → [D88]; next pipeline step:
     tombstone filter (deleted-session events stop counting); no changes to the
     single writer.
 
+## S3a design chat (opened 2026-10-25 — OSS recommender: rebuildable-project shelf + spine matching)
+
+Kickoff framing (user): design S3a from docs/prior-art/oss-recommender.md, read in
+full — §4 directions and §5 pre-agreements are strong starting positions, still
+challengeable. Locked starting economics (§5, user-agreed in the research chat):
+platform side = shared corpus only ($2–5 one-time seed + <$1/mo upkeep); per-user
+marginal cost $0 (SQL match + render); annotations/briefs written ONCE per repo,
+cached by repo+default-branch sha (D4); NEVER live per-user personalization of
+briefs — "why it fits you" is deterministic template interpolation; every card
+carries the flagship-hunt prompt copy button (user's tokens, platform $0); static
+recycled-list approach rejected. Priors challenged in play: D17 (HN/Algolia lane +
+"live LLM rerank" wording), D16 (license as scoring dim), D46 (what a picked
+project is worth), D41 (level-adaptive recommendations — promised, absent from
+§5's module shape), D54/D66 (skills[] matching precedent), D30 (AI constructs,
+never selects), D4 (annotation cache), D29 (dual-surface/MCP door). S3b rides this
+corpus (guided rebuild, parked contribution lane, D46 platform-guided tier).
+
+Open questions — argue one by one, learner reasoning first:
+
+- OQ24. Corpus pipeline + D17 amendment — v1 lane set: curated-list seed ingester
+  (build-your-own-x / project-based-learning / awesome-* domain lists) +
+  GitHub-Search discovery grid (topic × language × star-band × pushed ×
+  not-archived hard qualifiers); is D17's third lane (HN/Algolia mentions) dropped
+  for v1? Cadence: nightly grid on the pg-boss worker (D65 pattern) vs
+  seed-once/refresh-weekly; platform read-only GitHub token (search 30 req/min,
+  core 5k/hr — grid runs in minutes/night); dedupe on new/changed-sha only;
+  anti-generic gates (negative keywords/topics, wrapper + outsourced-backend
+  detection) as config rows seeded from the user's avoid-list. D17's "live LLM
+  rerank of top-N" → LLM ANNOTATES top-N only, rank order deterministic (D30
+  family).
+- OQ25. Shelf data model + enrich-time tagging — `repos` corpus +
+  `repo_list_memberships` + archetype/query-grid config rows + annotations cache
+  (D4 key repo+default-branch sha), D25 column-vs-payload applied honestly;
+  enrich-time canonical skills[]: the D24 alias ladder's 2–3-distance confirm-chip
+  zone CANNOT run inside a nightly cron, and routing every unmatched GitHub topic
+  into the candidate queue would flood the admin promotion queue — decide the
+  deterministic-only tagging rule and where unmatched topics go; shelf eligibility
+  - dead-repo handling.
+- OQ26. Scoring + the annotator (the ONLY AI layer) — hard filters → deterministic
+  weighted score: recency, star-velocity percentile within band (new official
+  star-history endpoint, 1 call/repo), tests/CI presence, docs, solo-modifiability
+  size ceiling, license as SOFT dim (D16 — rebuilds don't copy code); lane trust
+  flags (cross-list corroboration vs band+velocity), ONE shelf not two UIs;
+  annotation content (why-memorable blurb, modification-idea seeds, learning
+  payoff — §3's flagship-brief shape); weights = config rows (D47-family tuning).
+- OQ27. Spine match (the day job) — signal set: evidenced (user_skills) vs claimed
+  vs target-role archetype tech (+ S1 JD-extracted skills?); D41 promised level-
+  ADAPTIVE recommendations but §5's module shape has no level input —
+  difficulty-vs-level as soft boost, hard tier, or drop the promise?; match
+  emphasis: strengths (ready-to-rebuild) vs gaps (learn-by-rebuilding) vs blend;
+  exclusion of already-imported repos; top-N cards + deterministic "why it fits"
+  template lines; live query vs precomputed.
+- OQ28. Pick flow + spine boundary — what picking a card creates: out-link only vs
+  study-list/bookmark entity vs stubbed project row (D55b: nothing auto-creates
+  projects; D67's exception was repos the user AUTHORED); evidence boundary:
+  browsing/picking writes NO event_log rows (§5) — what carries "studying" state
+  into S3b (D46 platform-guided tier = S3b's door); contribution lane stays parked
+  as an S3b candidate.
+- OQ29. Surfaces + quota + MCP door + telemetry — web route/placement; anonymous
+  teaser vs logged-in-only (D51/D60: scanner family owns the attractor lane); free
+  - uncapped (per-user marginal $0, D78e quiz precedent) vs soft cap;
+    flagship-prompt button mechanics (pre-filled slots incl. repo + user skill
+    context; where the returned brief lands — D39 note?); MCP tool in v1 vs later
+    (S2's server + SKILL.md exist; `get_rebuild_shortlist` would be thin + free —
+    D29/D86 precedent vs scope); telemetry shape (shown/clicked analytics — own
+    table, D77 aggregate readouts, feeds OQ26 tuning); feature flag (D6).
+
+Status: OQ24–OQ29 ALL RESOLVED 2026-10-26 → [D90]–[D95]. Batch mode (user
+request, one-off deviation from learner-reasons-first): all six OQs presented in
+simple language with initial recommendations; user deep-dived the grid shape
+(OQ24c), then accepted ALL recommendations as-is. OQ LIST CLOSED. GRILL
+COMPLETE 2026-10-26 → [D96] (9/9 accepted, grounded in a code fact-sweep).
+SPEC + TICKETS PUBLISHED 2026-10-26: specs/s3a-oss-recommender.md (seams:
+service layer + gateway stub + injectable clock existing, GitHubReader the one
+new thin seam; 40 user stories + Integration section); 8 tracer-bullet tickets
+at .scratch/s3a-oss-recommender/issues/ (kickoff frontier = 01; then 02 → 03 →
+04 → {05, 06}; 07 ← 06; 08 ← 06). ROADMAP S3a → specced. BUILT 2026-10-26
+(same session, user: "start with the tickets and keep going until it's over"
+— all 8 tickets inline; check 52/228 green; build + smokes verified; [D97]
+implementation notes; ROADMAP → building until the batch hands-on walk).
+
+- **[D90] Corpus pipeline + D17 amendment (resolves OQ24; learner accepted
+  2026-10-26):** v1 LANE SET = two: curated-list seed ingester (build-your-own-x,
+  project-based-learning, awesome-* domain lists) + GitHub-Search discovery grid;
+  D17's third lane (HN/Algolia mentions) DROPPED for v1 — HN-famous projects are
+  usually already high-star (search catches them anyway) and every extra lane is
+  breakage surface; additive later if a real gap shows. CADENCE: search grid +
+  enrichment + annotation NIGHTLY on the pg-boss worker (D65 pattern);
+  curated-list re-ingest WEEKLY; dedupe on new/changed default-branch sha only.
+  GRID = ARCHETYPE-DRIVEN config rows (~6–10 seed archetypes, seeded from the
+  user's own target roles — dogfood day one), grown one row at a time; NEVER a
+  pre-built taxonomy (§5 locked); a global nightly query cap (config row) bounds
+  the grid — archetype growth can't silently blow the rate budget (search
+  30 req/min auth'd → ~200 queries ≈ 7 min/night). Platform READ-ONLY GitHub
+  token, app-owned (D45's per-user token stays import-only). Anti-generic gates
+  (negative keywords/topics, wrapper + outsourced-backend detection) = config
+  rows seeded from the user's avoid-list. D17 AMENDED: "live LLM rerank of
+  top-N" → the LLM ANNOTATES top-N only, rank order stays deterministic (D30
+  family — AI constructs, never selects; third formal landing).
+
+- **[D91] Shelf data model + enrich-time tagging (resolves OQ25; learner
+  accepted 2026-10-26):** tables `repos` (corpus) + `repo_list_memberships`
+  (cross-list vouch counter) + archetype/query-grid config rows + annotations
+  cache keyed repo+default-branch sha (D4); exact columns at spec, D25 applied
+  honestly. ENRICH-TIME skills[] = deterministic LADDER PREFIX ONLY (normalize →
+  exact alias → distance-≤1 auto-accept for ≥4-char tokens, D33 rule) — the 2–3
+  confirm-chip zone cannot run in a cron; unmatched topics are NOT routed into
+  the candidate-skill queue (admin flood); they stay raw in payload and surface
+  in a TOP-UNMATCHED admin readout — frequent misses drive deliberate alias adds
+  (data-driven growth). Tradeoff accepted: untagged skills under-match until
+  promoted. Dead repos: shelf_eligible=false flag (archived / unpushed >18mo);
+  rows never deleted.
+
+- **[D92] Scoring + the annotator — the only AI layer (resolves OQ26; learner
+  accepted 2026-10-26):** hard filters (alive, not fork/archived, anti-generic
+  pass, license present, solo-modifiability size ceiling) → deterministic
+  weighted score with ALL weights as config rows: push recency, star-velocity
+  percentile WITHIN band (official star-history endpoint, 1 call/repo — old
+  stargazer-timestamp route is dead), tests/CI presence, README/docs, license as
+  SOFT dim (MIT/Apache boost; GPL NOT disqualified — rebuild studies
+  architecture, copies nothing, D16). ONE shelf with lane trust flags
+  (cross-list vouch vs band+velocity), never two UIs. ANNOTATOR: top-N new
+  survivors per night (N = config row, ~30–50), one cheap gateway call per repo
+  writes the card blurb — why memorable, 3–5 modification ideas, learning payoff
+  (§3 flagship-brief shape); decorates only, never reorders; cents/night;
+  D4-cached. Tuning = D47-family console fed by D95 telemetry.
+
+- **[D93] Spine match — the day job (resolves OQ27; learner accepted
+  2026-10-26):** THREE SIGNALS matched against repo skills[] — evidenced
+  (user_skills), claimed, target-role archetype tech — each card
+  provenance-labeled ("matches your evidenced TypeScript · fits your
+  AI-engineer target"; D54/D62 honest-labeling pattern). LEVEL-ADAPT (D41's
+  promise, landed): SOFT boost, never a hard tier — repo difficulty proxy (size
+  - popularity + dependency count, deterministic) vs evidenced level; repos one
+    notch up get a "stretch" badge + visibility boost. DEFAULT emphasis =
+    strengths (a finishable flagship); "aim at my gaps" toggle swaps to gap-skill
+    emphasis, choice persists (D73 mode-memory pattern). JD-context matching =
+    later flag-gated add, not v1. Already-imported repos excluded. LIVE indexed
+    query per visit — no precompute, no cache (milliseconds; contrast S2 banks —
+    nothing expensive exists here).
+
+- **[D94] Pick flow + spine boundary (resolves OQ28; learner accepted
+  2026-10-26):** picking a card creates a `project_picks` (study-list) row —
+  user, repo, status (considering → building → dropped) — NOT a project stub:
+  the project bank stays user-curated (D55b: nothing auto-creates projects;
+  D67's exception was user-AUTHORED repos — shelf repos are someone else's
+  work). Browsing/picking writes ZERO event_log rows — no evidence, no D36
+  window-shopping farming. S3b's future "start rebuilding" promotes a pick into
+  a real project row (user-created, platform-watched → the D46 platform-guided
+  tier door). Briefing may later read picks as plain facts, never evidence
+  (spec-time call). Contribution lane stays PARKED as an S3b candidate riding
+  this corpus (§5).
+
+- **[D95] Surfaces + quota + MCP door + telemetry (resolves OQ29; learner
+  accepted 2026-10-26):** web = one new `/discover` route, top nav — matched-5
+  up top, browsable shelf below (lane/band/archetype filters). NO anonymous
+  teaser — the scanner family owns the attractor lane (D51/D60); an anonymous
+  shelf is "just another list," and the differentiator (spine match) requires an
+  account. COST: free + uncapped for logged-in users (per-user marginal = one
+  SQL query; D78e quiz precedent); no BYO logic — no per-user AI exists in the
+  slice. FLAGSHIP BUTTON (§5 locked): every card copies the user's flagship-hunt
+  prompt PRE-FILLED (repo name + their skill context) — their tokens, platform
+  $0; PLUS a "save result as note" link (D39 manual capture). MCP DOOR: one thin
+  read-only tool `get_rebuild_shortlist()` over the shipped S2 MCP server
+  (D86/D21 pattern — wrapper over the service layer) — designated FIRST CUT
+  under build pressure (nice-to-have, not load-bearing). TELEMETRY: shown/clicked
+  in its own table, NEVER event_log (evidence-only surface), aggregate-only
+  readouts with D77 minimums; feeds D92 weight tuning (shown-200/clicked-0 =
+  scoring miss). Feature flag D6: yes — kill-switch for the nightly job + page.
+
+- **[D96] S3a grill outcomes (9/9 recommendations accepted by learner,
+  2026-10-26):** grounded in a code fact-sweep of the shipped S0–S2 spine.
+  (a) CODE CATCH — `resolveTag` (src/services/skills.ts) CREATES a candidate
+  skill row on no-match; naive enrich-time reuse would flood the admin
+  promotion queue — the exact failure D91 forbids. Fix: a read-only
+  `resolveTagStrict()` export returns `unresolved` instead of creating;
+  enrich accepts ONLY `resolved` outcomes (canonical | alias | ≤1-typo
+  auto-accept — all already pure in the shipped ladder); existing-candidate
+  and confirm-zone count as unresolved; the night job NEVER writes to skills
+  tables (single-writer discipline intact). (b) CODE CATCH — no `Note` model
+  exists anywhere; D95's "save result as note" had no landing spot (D39 never
+  shipped). Minimal D39 `Note` model ships IN S3a (user, source kind, title,
+  content, optional skill link) + a paste-box capture surface on /discover
+  (run the flagship prompt in your AI, paste the brief back, save); S3a is
+  D39's first writer; S4 adds FSRS + full note surfaces. (c) Archetype
+  storage = ONE Json config row `discover.archetypes` (Config.value is Json;
+  certs.providers/D75 list-row precedent; zero migration; nothing FKs an
+  archetype in v1 — a repo can be found by many archetypes); scalar knobs
+  (query cap, top-N, weights, avoid-list, band bounds) = sibling config rows.
+  (d) Target-role → archetype mapping = `titlePatterns[]` normalized substring
+  match on target_roles.title (deterministic) + explicit user archetype picks
+  on /discover persisted in preferences; an explicit pick ALWAYS beats the
+  inference (D73 pattern); no match + no pick = skill-tag matching still
+  works, archetype filter shows all. (e) Discovery GitHub client = new
+  `github-discovery.ts` helper: env `GH_DISCOVERY_TOKEN` (app-owned,
+  read-only), raw fetch (zero-dependency house style — no octokit anywhere
+  today), token-bucket pacing (search ~25/min, core well under 5k/hr),
+  exponential backoff on 429/5xx, idempotent full runs (sha dedupe makes
+  re-runs cheap). Spec-time verification note (D26 pattern): confirm the
+  exact star-history endpoint path from the 2026-09 changelog at build time.
+  (f) Models formalized: `Repo`, `RepoListMembership`, `RepoAnnotation`
+  (repoId unique, sha, memorableWhy, modificationIdeas Json, learningPayoff,
+  generatedAt), `ProjectPick`, `RecImpression`, `Note`. Annotations get their
+  OWN table — card rendering joins them to the repo row in SQL; GatewayCache
+  stays a gateway-response KV. Annotation regenerates only on default-branch
+  sha change. (g) Annotation routing: ProviderRoute row `repo_annotate`,
+  PLATFORM-ONLY (D78f shared-asset rule, bank_gen precedent — annotations
+  serve all users), timeoutMs 120_000 at the call site (bank/grade class per
+  the per-call timeout work); cheap-tier model from the routing table;
+  cents/night. (h) Empty-spine fallback: /discover is never dead — the
+  matched section falls back to globally top-scored shelf-eligible repos +
+  one explainer line + CTA (profile/resume import); impressions still log
+  (D54 resume-mode honest-fallback spirit). (i) MCP: `get_rebuild_shortlist(
+archetype?)` joins the tools array in src/services/mcp.ts — thin wrapper
+  over the same match service the page calls (D21 one-enforcement-path),
+  read-only, never generates; SKILL.md gains a short section ("pull your
+  shelf into any chat"); ONE FeatureFlag row `discover` gates page + night
+  job + tool together. Grill frontier empty — S3a design tree complete.
+
+- **[D97] S3a implementation notes (recorded at build close, 2026-10-26):**
+  accepted deviations and confirmations from the implementation run (all 8
+  tickets green, `npm run check` 52 files / 228 tests; production build,
+  dev-DB push+seed, worker + route + MCP smokes all verified).
+  (a) UNMATCHED-TOPICS COUNTER = a JSON CONFIG ROW (`discover.unmatchedTopics`,
+  top-200 capped by count), not a seventh table — diagnostics, not source of
+  truth; keeps the model count at the designed six (D96f).
+  (b) SEARCH-LANE GATE HITS ARE SKIPPED ENTIRELY (never stored) — storing
+  every wrapper-clone the gates reject would swamp the corpus at ~30
+  hits/query; the LIST lane still stores its rare gated rows flagged
+  (audit), consistent with D91's nothing-deleted rule.
+  (c) README KEYWORD MINING NARROWED to fenced code-fence languages + repo
+  -name words — mining prose headings would flood the top-unmatched readout
+  with English noise words ("build", "your"). Topics remain the main signal.
+  (d) ANNOTATION CACHE = the RepoAnnotation ROW ITSELF (repo + sha), no
+  GatewayCache key — the row IS the D4 cache; candidate selection (sha
+  mismatch) enforces regenerate-only-on-code-change; zero gateway calls on
+  unchanged re-runs is test-asserted.
+  (e) ENRICHMENT SPENDS ONE cheap getHeadSha call per eligible repo nightly
+  as the skip check; full enrichment on sha change OR 7-day staleness (stars
+  drift without code changes). Idempotency holds (D96e).
+  (f) MCP SHORTLIST for a signal-less user returns the SAME global fallback
+  the page shows (never errors) — one honest behavior across surfaces.
+  (g) FLAG SEMANTICS follow the gateway convention: absent `discover` row =
+  enabled; the seed creates it enabled so the admin console shows the switch.
+  (h) VELOCITY PERCENTILE = strict-below count within the band cohort (ties
+  share a rank) — deterministic, no floating ordering.
+  (i) NO LIVE GITHUB CALLS ANYWHERE IN TESTS — GitHubReader fixtures only.
+  Deployment note: the nightly chain needs `GH_DISCOVERY_TOKEN` (read-only,
+  app-owned) in the worker env; without it both jobs skip gracefully
+  (`no-token`). Star-history endpoint path (D96e) gets its verification at
+  the first live run; the parser accepts both documented response shapes.
+
 ## Open questions for the VibeWise design chat (argue these first)
 
 1. Spine schema details: skills alias table design; evidence → level computation.

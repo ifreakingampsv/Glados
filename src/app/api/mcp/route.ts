@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { authenticateToken } from "@/services/tokens";
 import {
   MCP_TOOLS,
+  mcpGetRebuildShortlist,
   mcpGetReport,
   mcpGetSpineSnapshot,
   mcpSaveDecisionRecord,
@@ -134,6 +135,16 @@ export async function POST(request: Request) {
         }
         case "get_spine_snapshot": {
           const result = await mcpGetSpineSnapshot(userId);
+          return rpc(id, {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+          });
+        }
+        case "get_rebuild_shortlist": {
+          const result = await mcpGetRebuildShortlist(userId, {
+            mode: typeof args.mode === "string" ? args.mode : undefined,
+            archetype:
+              typeof args.archetype === "string" ? args.archetype : undefined,
+          });
           return rpc(id, {
             content: [{ type: "text", text: JSON.stringify(result) }],
           });

@@ -167,6 +167,58 @@ export async function resolveTag(input: string): Promise<Resolution> {
   };
 }
 
+// ---------- strict resolution (D96a: S3a enrich-time tagging) ----------
+
+// Read-only variant of the ladder: an unmatched tag NEVER creates a candidate
+// (a cron cannot click confirm chips, and the night job must not flood the
+// admin promotion queue), and candidates never auto-tag a repo. The night
+// pipeline accepts ONLY "resolved" outcomes and counts everything else into
+// the top-unmatched readout.
+export type StrictResolution =
+  | { status: "resolved"; skillId: string; name: string }
+  | { status: "unresolved" };
+
+export async function resolveTagStrict(
+  input: string
+): Promise<StrictResolution> {
+  const tag = normalizeTag(input);
+  if (!tag) return { status: "unresolved" };
+
+  const canonical = await db.skill.findFirst({
+    where: { name: tag, status: "ACTIVE" },
+  });
+  if (canonical)
+    return { status: "resolved", skillId: canonical.id, name: canonical.name };
+
+  const alias = await db.skillAlias.findUnique({ where: { alias: tag } });
+  if (alias) {
+    const target = await db.skill.findUnique({ where: { id: alias.skillId } });
+    if (target && target.status === "ACTIVE") {
+      return { status: "resolved", skillId: target.id, name: target.name };
+    }
+  }
+
+  const pool = await resolutionPool();
+  const matches = pool
+    .filter((entry) => entry.kind !== "candidate")
+    .map((entry) => ({ entry, distance: editDistance(tag, entry.name) }))
+    .filter((m) => m.distance <= FUZZY_MAX_DISTANCE)
+    .sort((a, b) => a.distance - b.distance);
+  if (matches.length === 0) return { status: "unresolved" };
+
+  // D33a auto-accept zone only — the 2–3 confirm zone and candidates stay
+  // unresolved at enrich time.
+  const nearest = matches[0];
+  if (nearest.distance <= 1 && tag.length >= AUTO_ACCEPT_MIN_LENGTH) {
+    return {
+      status: "resolved",
+      skillId: nearest.entry.id,
+      name: nearest.entry.name,
+    };
+  }
+  return { status: "unresolved" };
+}
+
 // ---------- tagging ----------
 
 export interface TagOptions {

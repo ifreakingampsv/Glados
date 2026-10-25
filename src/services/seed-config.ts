@@ -5,6 +5,20 @@ import {
   DEFAULT_POINTS,
   DEFAULT_SOURCE_WEIGHTS,
 } from "@/services/levels";
+import {
+  DEFAULT_DISCOVER_ANNOTATE_TOP_N,
+  DEFAULT_DISCOVER_ARCHETYPES,
+  DEFAULT_DISCOVER_AVOID,
+  DEFAULT_DISCOVER_DIFFICULTY,
+  DEFAULT_DISCOVER_FILTERS,
+  DEFAULT_DISCOVER_GRID,
+  DEFAULT_DISCOVER_LISTS,
+  DEFAULT_DISCOVER_MATCH_WEIGHTS,
+  DEFAULT_DISCOVER_STAR_BANDS,
+  DEFAULT_DISCOVER_TELEMETRY_MINIMUMS,
+  DEFAULT_DISCOVER_WEIGHTS,
+  DEFAULT_FLAGSHIP_PROMPT_TEMPLATE,
+} from "@/services/shelf";
 
 export const DEFAULT_ATTRACTOR_CAPS: Record<string, number> = {
   jd_scan: 5,
@@ -230,6 +244,26 @@ export async function seedConfig() {
       key: "interview.verdictFractions",
       value: { green: 1, amber: 0.5, red: 0 },
     },
+    // S3a shelf tunables (D90–D96) — archetypes, bands, gates, weights are
+    // all data; archetype growth is config editing, never code.
+    { key: "discover.lists", value: DEFAULT_DISCOVER_LISTS },
+    { key: "discover.archetypes", value: DEFAULT_DISCOVER_ARCHETYPES },
+    { key: "discover.starBands", value: DEFAULT_DISCOVER_STAR_BANDS },
+    { key: "discover.grid", value: DEFAULT_DISCOVER_GRID },
+    { key: "discover.avoid", value: DEFAULT_DISCOVER_AVOID },
+    { key: "discover.weights", value: DEFAULT_DISCOVER_WEIGHTS },
+    { key: "discover.filters", value: DEFAULT_DISCOVER_FILTERS },
+    { key: "discover.matchWeights", value: DEFAULT_DISCOVER_MATCH_WEIGHTS },
+    { key: "discover.difficulty", value: DEFAULT_DISCOVER_DIFFICULTY },
+    { key: "discover.annotateTopN", value: DEFAULT_DISCOVER_ANNOTATE_TOP_N },
+    {
+      key: "discover.telemetryMinimums",
+      value: DEFAULT_DISCOVER_TELEMETRY_MINIMUMS,
+    },
+    {
+      key: "discover.flagshipPromptTemplate",
+      value: DEFAULT_FLAGSHIP_PROMPT_TEMPLATE,
+    },
   ];
 
   for (const row of rows) {
@@ -417,6 +451,25 @@ const ROUTES: Array<{
     costPer1kUsd: 0,
     isActive: true,
   },
+  // S3a (D92/D96g): annotations are a SHARED asset — platform-only (D78f,
+  // bank_gen precedent), 120s timeout at the call site (bank/grade class).
+  {
+    feature: "repo_annotate",
+    provider: "google",
+    model: "gemini-2.0-flash",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    costPer1kUsd: 0.0005,
+    isActive: false, // flip on when PLATFORM_GOOGLE_API_KEY exists (D26)
+  },
+  {
+    feature: "repo_annotate",
+    provider: "atriadawn",
+    model: "Atria-Dawn",
+    endpoint: "https://api.atria-asi.ai/v1/chat/completions",
+    costPer1kUsd: 0,
+    isActive: true,
+  },
 ];
 
 export async function seedRoutes() {
@@ -428,4 +481,15 @@ export async function seedRoutes() {
       await db.providerRoute.create({ data: route });
     }
   }
+}
+
+// S3a (D96i): the single kill-switch row gates page + both schedules + the
+// MCP tool. Absent row = enabled (gateway checkFlag precedent); seeding it
+// keeps the switch visible in the admin console from day one.
+export async function seedFeatureFlags() {
+  await db.featureFlag.upsert({
+    where: { key: "discover" },
+    update: {},
+    create: { key: "discover", enabled: true },
+  });
 }

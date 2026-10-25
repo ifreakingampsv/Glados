@@ -43,6 +43,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <Link href="/gaps" className="nav-link">
             Gap Map
           </Link>
+          <Link href="/discover" className="nav-link">
+            Discover
+          </Link>
           <Link href="/resume" className="nav-link">
             Resume
           </Link>

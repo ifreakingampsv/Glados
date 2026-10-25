@@ -21,6 +21,7 @@ import {
 } from "@/services/eval-runner";
 import { GoldenRunButton } from "@/components/admin-golden-run";
 import { interviewStorageReadout } from "@/services/interview-tiering";
+import { shelfTelemetry } from "@/services/shelf-telemetry";
 import { listInviteCodes, listWaitlist } from "@/services/waitlist";
 import {
   GenerateDefinitionsButton,
@@ -140,6 +141,8 @@ export default async function AdminPage() {
   const leafSkills = actives
     .filter((a) => !PARENT_CATEGORY_NAMES.has(a.name))
     .map((a) => ({ id: a.id, display: a.display }));
+
+  const shelf = await shelfTelemetry();
 
   return (
     <main>
@@ -942,6 +945,55 @@ export default async function AdminPage() {
             bills real provider minutes. Un-bench ladder: harness-voice via the
             MCP skill file first (user tokens), platform voice only with paying
             users + demand signal (current demand count: {voiceDemand}).
+          </p>
+        </div>
+      </section>
+      <section className="section-card">
+        <h2>Discover shelf (S3a)</h2>
+        <div className="stack">
+          <h3>
+            Card CTR (aggregate, min {shelf.minImpressions} impressions — D77
+            minimums)
+          </h3>
+          {shelf.repoCtr.length === 0 ? (
+            <p className="muted">Not enough impressions yet.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Repo</th>
+                  <th>Shown</th>
+                  <th>Clicked</th>
+                  <th>CTR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shelf.repoCtr.slice(0, 10).map((r) => (
+                  <tr key={r.repo}>
+                    <td>{r.repo}</td>
+                    <td>{r.shown}</td>
+                    <td>{r.clicked}</td>
+                    <td>{(r.ctr * 100).toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <h3>Top unmatched topics (D91 readout — add these as aliases)</h3>
+          {shelf.topUnmatched.length === 0 ? (
+            <p className="muted">No unmatched topics recorded yet.</p>
+          ) : (
+            <ul>
+              {shelf.topUnmatched.map((t) => (
+                <li key={t.topic}>
+                  <code>{t.topic}</code> × {t.count}
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="muted">
+            Shown-200/clicked-0 repos are scoring misses — tune the
+            <code> discover.weights</code> config row.
           </p>
         </div>
       </section>
