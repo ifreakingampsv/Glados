@@ -21,6 +21,7 @@ export interface GatewayCallInput {
   forcePlatform?: boolean; // set AFTER the user pressed the fallback button (D34)
   cacheKey?: string; // D4 content-hash cache key
   skipEnergy?: boolean; // D60: attractor/free-capped calls never drain energy bars
+  timeoutMs?: number; // default 30s; reasoning models need more for long outputs
 }
 
 export type GatewayResult =
@@ -104,7 +105,8 @@ export async function callOpenAI(
   route: ProviderRoute,
   apiKey: string,
   messages: GatewayMessage[],
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch,
+  timeoutMs = 30_000
 ): Promise<ProviderResponse> {
   const response = await fetchImpl(route.endpoint, {
     method: "POST",
@@ -113,7 +115,7 @@ export async function callOpenAI(
       authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ model: route.model, messages }),
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) {
     throw new ProviderHttpError(response.status, await response.text());
@@ -234,7 +236,8 @@ export async function gatewayCall(
         route,
         byoKey,
         input.messages,
-        fetchImpl
+        fetchImpl,
+        input.timeoutMs
       );
       const usageId = await meter(
         input.userId,
@@ -286,7 +289,8 @@ export async function gatewayCall(
     route,
     platformKey,
     input.messages,
-    fetchImpl
+    fetchImpl,
+    input.timeoutMs
   );
   const usageId = await meter(
     input.userId,

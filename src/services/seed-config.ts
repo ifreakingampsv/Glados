@@ -293,11 +293,11 @@ const ROUTES: Array<{
   },
   {
     feature: "smoke",
-    provider: "atria-dawn",
-    model: "atria-fast",
-    endpoint: "https://api.atriadawn.example/v1/chat/completions",
-    costPer1kUsd: 0,
-    isActive: false, // endpoint unverified (D26 open detail)
+    provider: "atriadawn",
+    model: "Atria-Dawn",
+    endpoint: "https://api.atria-asi.ai/v1/chat/completions",
+    costPer1kUsd: 0, // free preview tier (100M-token promo, Oct 2026)
+    isActive: true, // OpenAI-compat verified live 2026-10-25 (D26 closed)
   },
   {
     feature: "skill_definition",
@@ -373,6 +373,14 @@ const ROUTES: Array<{
     endpoint:
       "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     costPer1kUsd: 0.0004,
+    isActive: false, // flip on when PLATFORM_GOOGLE_API_KEY exists (D26)
+  },
+  {
+    feature: "interview_turn",
+    provider: "atriadawn",
+    model: "Atria-Dawn",
+    endpoint: "https://api.atria-asi.ai/v1/chat/completions",
+    costPer1kUsd: 0,
     isActive: true,
   },
   {
@@ -382,6 +390,14 @@ const ROUTES: Array<{
     endpoint:
       "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     costPer1kUsd: 0.001,
+    isActive: false, // flip on when PLATFORM_GOOGLE_API_KEY exists (D26)
+  },
+  {
+    feature: "interview_grader",
+    provider: "atriadawn",
+    model: "Atria-Dawn",
+    endpoint: "https://api.atria-asi.ai/v1/chat/completions",
+    costPer1kUsd: 0,
     isActive: true,
   },
   {
@@ -391,6 +407,14 @@ const ROUTES: Array<{
     endpoint:
       "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     costPer1kUsd: 0.0004,
+    isActive: false, // flip on when PLATFORM_GOOGLE_API_KEY exists (D26)
+  },
+  {
+    feature: "briefing_note",
+    provider: "atriadawn",
+    model: "Atria-Dawn",
+    endpoint: "https://api.atria-asi.ai/v1/chat/completions",
+    costPer1kUsd: 0,
     isActive: true,
   },
 ];

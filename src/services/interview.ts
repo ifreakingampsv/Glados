@@ -274,6 +274,7 @@ export async function ensureInterviewBank(input: EnsureBankInput): Promise<{
         cacheKey: usedKey,
         interactive: true,
         skipEnergy: true, // the flat session bar (D84) is charged at start, not per call
+        timeoutMs: 120_000, // bank generation is a long reasoning-model output
         forcePlatform: input.forcePlatform,
         messages: [
           {
@@ -546,6 +547,7 @@ async function advanceOnce(
       feature: INTERVIEW_TURN_FEATURE,
       interactive: true,
       skipEnergy: true,
+      timeoutMs: 60_000, // reasoning models think before push/next
       messages: [
         {
           role: "system",

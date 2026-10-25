@@ -124,6 +124,7 @@ export async function draftDecisionRecordsFromSession(
       cacheKey, // per-session: drafting twice never pays twice
       interactive: true,
       skipEnergy: true,
+      timeoutMs: 120_000,
       messages: [
         {
           role: "system",

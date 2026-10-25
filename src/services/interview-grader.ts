@@ -236,6 +236,7 @@ export async function gradeInterviewSession(
       userId: session.userId,
       feature: INTERVIEW_GRADER_FEATURE,
       skipEnergy: true, // queued platform spend, D88f — not user-visible energy
+      timeoutMs: 120_000, // full-rubric grading is a long reasoning-model output
       messages: [
         { role: "system", content: GRADER_SYSTEM_PROMPT },
         {

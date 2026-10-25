@@ -236,6 +236,7 @@ export async function generateCoachNote(
       cacheKey,
       skipEnergy: true,
       interactive: true,
+      timeoutMs: 60_000,
       messages: [
         {
           role: "system",
