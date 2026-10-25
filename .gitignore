@@ -19,3 +19,6 @@ tsconfig.tsbuildinfo
 
 # VibeWise Antigravity plugin bundle (reinstallable, machine-level code)
 .agents/plugins/vibe-wise/
+
+# root-level scratch scripts (live-run helpers) — never commit, never type-check
+*.tmp.ts

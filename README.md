@@ -122,7 +122,7 @@ npm run worker             # terminal 3 (optional) — pg-boss worker process
 | `npm run dev`                               | dev server on :3000, logs tee to `.next/dev.log`                |
 | `npm run worker`                            | starts the `pg-boss` background worker (`scripts/worker.ts`)    |
 | `npm run dev:db`                            | local Postgres on :5433 (embedded binaries, data in `.pgdata/`) |
-| `npm test`                                  | 27 service-layer test suites (102 tests) against Postgres :5434 |
+| `npm test`                                  | 52 service-layer test suites (228 tests) against Postgres :5434 |
 | `npm run check`                             | typecheck + lint + tests — the pre-commit gate                  |
 | `npm run build`                             | production Next.js build                                        |
 | `npm run db:push` / `db:seed` / `test:user` | schema sync / vocabulary+config seed / test account             |
