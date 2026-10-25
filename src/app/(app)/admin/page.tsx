@@ -3,7 +3,15 @@ import { getSessionUser } from "@/lib/auth";
 import {
   getAdminEconomicsDashboard,
   getAdminEvidenceReadouts,
+  getAdminQuizTelemetry,
 } from "@/services/economics";
+import {
+  DEFAULT_POINTS,
+  DEFAULT_SOURCE_WEIGHTS,
+  getConfig,
+} from "@/services/levels";
+import { isStrictReviewGatingEnabled } from "@/services/quiz-banks";
+import { getReplayFeatureFlags } from "@/services/replay";
 import { listCandidates } from "@/services/skill-admin";
 import { listInviteCodes, listWaitlist } from "@/services/waitlist";
 import {
@@ -12,14 +20,32 @@ import {
   StorageProbeButton,
 } from "@/components/probe-button";
 import {
+  GenerateQuizBanksForm,
+  WhatIfReplayPanel,
+} from "@/components/admin-calibration-controls";
+import {
   approveCandidateAction,
+  approveQuizBankReviewAction,
   createInviteCodeAction,
   mergeCandidateAction,
   rejectCandidateAction,
+  retireAndReplaceQuizBankAction,
   setFlagAction,
+  toggleReplayFlagsAction,
+  toggleStrictReviewGatingAction,
 } from "@/app/actions/admin";
 
 export const dynamic = "force-dynamic";
+
+const PARENT_CATEGORY_NAMES = new Set([
+  "languages",
+  "frontend",
+  "backend",
+  "database",
+  "devops",
+  "mobile",
+  "tooling",
+]);
 
 export default async function AdminPage() {
   const user = await getSessionUser();
@@ -53,6 +79,11 @@ export default async function AdminPage() {
     routes,
     economics,
     readouts,
+    quizTelemetry,
+    replayFlags,
+    strictReviewGating,
+    pointsConfig,
+    sourceWeightsConfig,
   ] = await Promise.all([
     listCandidates(),
     db.skill.findMany({
@@ -68,14 +99,24 @@ export default async function AdminPage() {
     }),
     getAdminEconomicsDashboard(user),
     getAdminEvidenceReadouts(user),
+    getAdminQuizTelemetry(user),
+    getReplayFeatureFlags(),
+    isStrictReviewGatingEnabled(),
+    getConfig<Record<string, number>>("points.types", DEFAULT_POINTS),
+    getConfig<Record<string, number>>("points.sources", DEFAULT_SOURCE_WEIGHTS),
   ]);
+
+  const leafSkills = actives
+    .filter((a) => !PARENT_CATEGORY_NAMES.has(a.name))
+    .map((a) => ({ id: a.id, display: a.display }));
 
   return (
     <main>
       <h1>Admin console</h1>
       <p className="lede">
         Manage the candidate skill taxonomy, AI gateway routes, economics
-        readouts, feature flags, and waitlist invite codes.
+        readouts, quiz telemetry, spot-review queue, feature flags, and waitlist
+        invite codes.
       </p>
 
       {alerts.length > 0 && (
@@ -233,12 +274,346 @@ export default async function AdminPage() {
 
           <div>
             <h3>Evidence vs Quiz Divergence</h3>
-            <p className="empty-state">
-              {readouts.evidenceVsQuizDivergence.note}
-            </p>
+            {!readouts.evidenceVsQuizDivergence.sufficientSample ||
+            readouts.evidenceVsQuizDivergence.rows.length === 0 ? (
+              <p className="empty-state">
+                {readouts.evidenceVsQuizDivergence.note}
+              </p>
+            ) : (
+              <ul className="item-list">
+                {readouts.evidenceVsQuizDivergence.rows.map((row) => (
+                  <li key={row.skillId} className="item-row row-between">
+                    <div className="row">
+                      <strong>{row.skillDisplay}</strong>
+                      <span className="muted tabular">
+                        ({row.userCount} users holding both)
+                      </span>
+                    </div>
+                    <div className="row tabular">
+                      <span>
+                        Evidenced avg L{row.evidencedLevel.toFixed(2)} vs Quiz
+                        avg L{row.quizLevel.toFixed(2)} (delta{" "}
+                        {row.divergenceDelta >= 0 ? "+" : ""}
+                        {row.divergenceDelta.toFixed(2)})
+                      </span>
+                      <span className="badge">
+                        L0-1:{row.settledBands["L0-1"]} · L2-3:
+                        {row.settledBands["L2-3"]} · L4-5:
+                        {row.settledBands["L4-5"]}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </section>
+
+      <section className="section-card">
+        <h2>Quiz telemetry (D59 / D77)</h2>
+        <p className="muted" style={{ marginBottom: "0.75rem" }}>
+          Aggregate-only telemetry over calibration sessions and answers. Each
+          readout renders only above its configured minimum sample threshold (
+          <code>telemetry.minimums</code>) and shows an honest &quot;Not enough
+          data&quot; state below N.
+        </p>
+
+        {quizTelemetry.brokenQuestionAlerts.length > 0 && (
+          <div
+            className="alert alert-danger"
+            role="alert"
+            style={{ marginBottom: "1rem" }}
+          >
+            <strong>
+              Broken-question alert ({quizTelemetry.brokenQuestionAlerts.length}
+              ):
+            </strong>{" "}
+            {quizTelemetry.brokenQuestionAlerts
+              .map(
+                (q) =>
+                  `${q.skillDisplay} (${q.band}): ${(q.successRate * 100).toFixed(0)}% success across ${q.answerCount} answers`
+              )
+              .join("; ")}{" "}
+            (auto-flagged into the spot-review queue below).
+          </div>
+        )}
+
+        <div className="stack">
+          <div>
+            <h3>
+              Completion Rate per Bank (min{" "}
+              {quizTelemetry.completionRate.minimumRequired} sessions)
+            </h3>
+            {!quizTelemetry.completionRate.sufficientSample ? (
+              <p className="empty-state">
+                {quizTelemetry.completionRate.statusNote}
+              </p>
+            ) : (
+              <ul className="item-list">
+                {quizTelemetry.completionRate.rows.map((r) => (
+                  <li
+                    key={`${r.skillId}-v${r.bankVersion}`}
+                    className="item-row row-between"
+                  >
+                    <div>
+                      <strong>{r.skillDisplay}</strong>{" "}
+                      <span className="muted">v{r.bankVersion}</span>
+                    </div>
+                    <span className="tabular">
+                      {(r.completionRate * 100).toFixed(1)}% completed (
+                      {r.completedSessions}/{r.totalSessions} sessions)
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div>
+            <h3>
+              Drop-Off Question Index (min{" "}
+              {quizTelemetry.dropOffIndex.minimumRequired} sessions)
+            </h3>
+            {!quizTelemetry.dropOffIndex.sufficientSample ? (
+              <p className="empty-state">
+                {quizTelemetry.dropOffIndex.statusNote}
+              </p>
+            ) : quizTelemetry.dropOffIndex.rows.length === 0 ? (
+              <p className="empty-state">
+                No abandoned sessions recorded across{" "}
+                {quizTelemetry.dropOffIndex.totalSessionsSampled} sampled
+                sessions.
+              </p>
+            ) : (
+              <ul className="item-list">
+                {quizTelemetry.dropOffIndex.rows.map((r) => (
+                  <li
+                    key={`dropoff-${r.questionIndex}`}
+                    className="item-row row-between"
+                  >
+                    <strong>Question #{r.questionIndex}</strong>
+                    <span className="tabular">
+                      {r.droppedSessions} abandon(s) (
+                      {(r.shareOfAbandons * 100).toFixed(1)}%)
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div>
+            <h3>
+              Per-Question Success Rate (min{" "}
+              {quizTelemetry.perQuestionSuccess.minimumRequired} answers)
+            </h3>
+            {!quizTelemetry.perQuestionSuccess.sufficientSample ? (
+              <p className="empty-state">
+                {quizTelemetry.perQuestionSuccess.statusNote}
+              </p>
+            ) : (
+              <ul className="item-list">
+                {quizTelemetry.perQuestionSuccess.rows.slice(0, 20).map((q) => (
+                  <li key={q.questionId} className="item-row row-between">
+                    <div className="row">
+                      <strong>{q.skillDisplay}</strong>
+                      <span className="badge">{q.band}</span>
+                      <span className="muted">{q.prompt}</span>
+                    </div>
+                    <div className="row tabular">
+                      <span>
+                        {(q.successRate * 100).toFixed(1)}% ({q.correctCount}/
+                        {q.answerCount})
+                      </span>
+                      {q.flaggedBroken && (
+                        <span className="badge badge-warning">
+                          flagged broken
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div>
+            <h3>
+              Retake Frequency ({quizTelemetry.retakeFrequency.windowDays}-day
+              window, min {quizTelemetry.retakeFrequency.minimumRequired}{" "}
+              completed sessions)
+            </h3>
+            {!quizTelemetry.retakeFrequency.sufficientSample ||
+            !quizTelemetry.retakeFrequency.data ? (
+              <p className="empty-state">
+                {quizTelemetry.retakeFrequency.statusNote}
+              </p>
+            ) : (
+              <div className="item-row row-between tabular">
+                <span>
+                  {quizTelemetry.retakeFrequency.data.retakeSessions} retake
+                  session(s) across{" "}
+                  {quizTelemetry.retakeFrequency.data.totalCompletedSessions}{" "}
+                  completed session(s)
+                </span>
+                <strong>
+                  {(
+                    quizTelemetry.retakeFrequency.data.retakeRate * 100
+                  ).toFixed(1)}
+                  % retake rate
+                </strong>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h3>
+              Time per Question (min{" "}
+              {quizTelemetry.timePerQuestion.minimumRequired} timed answers)
+            </h3>
+            {!quizTelemetry.timePerQuestion.sufficientSample ? (
+              <p className="empty-state">
+                {quizTelemetry.timePerQuestion.statusNote}
+              </p>
+            ) : (
+              <div className="item-row row-between tabular">
+                <span>
+                  Overall avg: {quizTelemetry.timePerQuestion.overallAvgMs ?? 0}{" "}
+                  ms across {quizTelemetry.timePerQuestion.totalAnswersSampled}{" "}
+                  answers
+                </span>
+                <div className="row">
+                  {quizTelemetry.timePerQuestion.byBand.map((b) => (
+                    <span key={b.band} className="badge">
+                      {b.band}: {b.avgMs} ms ({b.answerCount})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="section-card">
+        <h2>
+          Quiz bank spot-review queue (D59 / D78b) (
+          {quizTelemetry.spotReviewQueue.length})
+        </h2>
+        <div
+          className="row-between"
+          style={{ flexWrap: "wrap", marginBottom: "0.75rem" }}
+        >
+          <div className="row">
+            <span className="muted">Publishing mode:</span>
+            <span
+              className={
+                strictReviewGating
+                  ? "badge badge-warning"
+                  : "badge badge-success"
+              }
+            >
+              {strictReviewGating
+                ? "Strict review gating (needs_review before live)"
+                : "Lint-gated auto-live (async spot review)"}
+            </span>
+          </div>
+          <form action={toggleStrictReviewGatingAction}>
+            <input
+              type="hidden"
+              name="enabled"
+              value={strictReviewGating ? "false" : "true"}
+            />
+            <button type="submit" className="btn btn-sm">
+              {strictReviewGating
+                ? "Switch to lint-gated auto-live"
+                : "Switch to strict review gating"}
+            </button>
+          </form>
+        </div>
+
+        <div style={{ marginBottom: "1rem" }}>
+          <GenerateQuizBanksForm leafSkills={leafSkills} />
+        </div>
+
+        {quizTelemetry.spotReviewQueue.length === 0 ? (
+          <p className="empty-state">
+            No quiz banks in the spot-review queue yet. Generate banks above or
+            take a skill quiz to populate banks.
+          </p>
+        ) : (
+          <ul className="item-list">
+            {quizTelemetry.spotReviewQueue.map((item) => (
+              <li key={item.bankId} className="item-row stack">
+                <div className="row-between" style={{ flexWrap: "wrap" }}>
+                  <div className="row">
+                    <strong>{item.skillDisplay}</strong>
+                    <span className="badge">{item.band}</span>
+                    <span className="muted tabular">
+                      v{item.version} ({item.questionCount} questions)
+                    </span>
+                    <span
+                      className={
+                        item.status === "live"
+                          ? "badge badge-success"
+                          : "badge badge-warning"
+                      }
+                    >
+                      {item.status}
+                    </span>
+                  </div>
+                  <div className="row">
+                    {item.status === "needs_review" && (
+                      <form action={approveQuizBankReviewAction}>
+                        <input
+                          type="hidden"
+                          name="bankId"
+                          value={item.bankId}
+                        />
+                        <button
+                          type="submit"
+                          className="btn btn-sm btn-primary"
+                        >
+                          Approve live
+                        </button>
+                      </form>
+                    )}
+                    <form action={retireAndReplaceQuizBankAction}>
+                      <input type="hidden" name="bankId" value={item.bankId} />
+                      <button type="submit" className="btn btn-sm btn-danger">
+                        Retire &amp; regenerate
+                      </button>
+                    </form>
+                  </div>
+                </div>
+                {item.flaggedQuestions.length > 0 && (
+                  <div className="muted" style={{ fontSize: "0.85rem" }}>
+                    Flagged broken questions ({item.flaggedQuestions.length}):{" "}
+                    {item.flaggedQuestions
+                      .map(
+                        (fq) =>
+                          `"${fq.prompt}" (${(fq.successRate * 100).toFixed(0)}% over ${fq.answerCount} answers)`
+                      )
+                      .join("; ")}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {replayFlags.whatIfEnabled && (
+        <section className="section-card">
+          <h2>What-if replay &amp; guarded apply (D47 / D68)</h2>
+          <WhatIfReplayPanel
+            initialPoints={pointsConfig}
+            initialSourceWeights={sourceWeightsConfig}
+            applyEnabled={replayFlags.applyEnabled}
+          />
+        </section>
+      )}
 
       <section className="section-card">
         <h2>Candidate skill queue ({candidates.length})</h2>
@@ -349,6 +724,37 @@ export default async function AdminPage() {
 
       <section className="section-card">
         <h2>Feature flags (D6)</h2>
+        <div
+          className="row"
+          style={{ gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.75rem" }}
+        >
+          <form action={toggleReplayFlagsAction}>
+            <input type="hidden" name="flagType" value="whatIf" />
+            <input
+              type="hidden"
+              name="enabled"
+              value={replayFlags.whatIfEnabled ? "false" : "true"}
+            />
+            <button type="submit" className="btn btn-sm">
+              {replayFlags.whatIfEnabled
+                ? "Disable replay.whatIf"
+                : "Enable replay.whatIf"}
+            </button>
+          </form>
+          <form action={toggleReplayFlagsAction}>
+            <input type="hidden" name="flagType" value="apply" />
+            <input
+              type="hidden"
+              name="enabled"
+              value={replayFlags.applyEnabled ? "false" : "true"}
+            />
+            <button type="submit" className="btn btn-sm">
+              {replayFlags.applyEnabled
+                ? "Disable replay.apply"
+                : "Enable replay.apply"}
+            </button>
+          </form>
+        </div>
         {flags.length === 0 ? (
           <p className="empty-state">
             No feature flags registered yet. Flags are created on first toggle

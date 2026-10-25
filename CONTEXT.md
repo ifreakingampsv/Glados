@@ -60,6 +60,36 @@ it; a merge leaves a pointer to the absorbing canonical skill.
 Required-vs-have skill comparison for a JD, computed as a canonical-id set
 difference.
 
+**Calibration quiz**:
+A deterministic multiple-choice check that settles a skill's band and writes
+signed-delta evidence. _Avoid_: test, assessment.
+
+**Bank**:
+The cached question set for one skill + band + version; generated lazily, shared
+by all users.
+
+**Staircase**:
+The round-based quiz session that steps between bands and settles at one.
+
+**Signed delta**:
+A quiz event's points equal the new result minus the previous result; negative
+deltas make levels fall, bounded so quiz credit alone can hit zero.
+
+**Cooldown**:
+The per-skill wait between completed quiz sessions.
+
+**Verify URL**:
+A certificate provider's public page proving a certificate exists; the basis of
+verification.
+
+**Allowlisted provider**:
+A certificate provider with a verify-URL pattern; only allowlisted providers can
+earn verified evidence — everyone else is a plain claim.
+
+**Corroboration cap**:
+The rule that evidence from a single weak source type cannot raise a skill past
+L3 until a second source type corroborates it.
+
 ## AI & quota
 
 **Gateway**:

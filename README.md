@@ -7,9 +7,17 @@ preferences, and an append-only event log) that every feature slice reads and wr
 > `GLaDOS` is an internal codename (Valve owns the Portal trademark). A rename checklist
 > fires before any public launch step (`docs/DEPLOY.md`).
 
-**Current status: [S0 — Spine] & [S1 — Imports, Gap Map, Free Scanner & Resume Builder] shipped** (2026-10-11). S1.5 (calibration layer: skill quizzes, certificates, evidence tuning console, commit-to-post generator) is next. Full plan: [`ROADMAP.md`](ROADMAP.md).
+**Current status: [S0 — Spine], [S1 — Imports, Gap Map, Free Scanner & Resume Builder] & [S1.5 — Calibration Layer] shipped** (S1.5: built 2026-10-12, verified 2026-10-25). Next up: S2 (interview AI) / S3a (OSS recommender). Full plan: [`ROADMAP.md`](ROADMAP.md).
 
 ---
+
+## What S1.5 adds on top of S1
+
+- **Honesty machinery in the evidence core** — the trust ladder's corroboration cap finally enforced: evidence from a single source bucket (repos, work experience, certificates, quizzes) clamps at **L3** until a second source type corroborates; plus the **narrow negative lane** — quiz retakes write signed-delta evidence (levels can fall), bounded so quiz credit alone can hit zero and can never eat repo/work-experience/certificate evidence.
+- **Calibration quizzes** — per-skill MCQ banks generated lazily (all three bands at once, cached per version, grounded in each skill's definition), deterministic lint before live with an async admin spot-review queue, 6-question staircase sessions that settle a band in ≤18 questions, 7-day per-skill cooldown, free and uncapped takes; start band = the higher of claimed and evidenced level.
+- **Course certificates** — allowlisted providers with public verify-URL patterns (Coursera, edX, DeepLearning.AI, Udacity, freeCodeCamp, Google/Meta career certs, and more), one cached fetch per submission with a soft name match (mismatch warns, never gates), user-confirmed course→skill mapping, optional PDF via the storage module; evidence decays from the issue date, off-list providers fall to plain claims with a quiz nudge.
+- **Commit→post generator** — a stateless milestone gate: post drafting unlocks at ≥10 pushed user-authored commits since the last draft on a GitHub-linked project (computed live through the Clerk token, nothing stored); drafts are grounded in the actual commit range plus the cached LinkedIn-review advice; the user always edits, times, and posts themselves — no auto-posting anywhere.
+- **Admin calibration console** — quiz telemetry (completion rate, drop-off question index, per-question success, retake frequency, time per question) rendered only above per-readout minimum samples; the evidence-vs-quiz divergence readout filled; a broken-question auto-flag (≥20 answers, <20% success) into the bank review queue; and the flag-gated what-if replay — change → replay → diff → apply, where apply is a guarded bulk rebuild outside the single-writer path.
 
 ## What S1 adds on top of S0
 

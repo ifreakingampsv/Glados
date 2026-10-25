@@ -7,6 +7,11 @@ import {
   prepareRepoSelectionList,
 } from "@/services/github-import";
 import {
+  LINKEDIN_SHARE_FLOW_GUIDE_COPY,
+  checkProjectPostEligibility,
+  type ProjectPostEligibility,
+} from "@/services/commit-post";
+import {
   createProjectAction,
   deleteProjectAction,
   removeProjectSkillAction,
@@ -14,6 +19,7 @@ import {
 } from "@/app/actions/projects";
 import { ProjectSkillEditor } from "@/components/project-skill-editor";
 import { GithubImportPanel } from "@/components/github-import-panel";
+import { CommitPostPanel } from "@/components/commit-post-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -49,12 +55,26 @@ export default async function ProjectsPage({
     : [];
   const skillDisplayById = new Map(skillRows.map((s) => [s.id, s.display]));
 
+  const eligibilityByProjectId = new Map<string, ProjectPostEligibility>();
+  for (const p of projects) {
+    try {
+      const elig = await checkProjectPostEligibility({
+        userId: user.id,
+        projectId: p.id,
+      });
+      eligibilityByProjectId.set(p.id, elig);
+    } catch {
+      // Ignore eligibility lookup error on render
+    }
+  }
+
   return (
     <main>
       <h1>Projects</h1>
       <p className="lede">
         Your curated bank of shipped projects and repositories. Tag the skills
-        each project demonstrates so profile-mode gap matching can verify them.
+        each project demonstrates so profile-mode gap matching can verify them,
+        and draft LinkedIn milestone posts from GitHub-linked commit ranges.
       </p>
 
       {params.error === "invalid" && (
@@ -94,70 +114,80 @@ export default async function ProjectsPage({
           </p>
         ) : (
           <ul className="item-list">
-            {projects.map((p) => (
-              <li key={p.id} className="item-row stack">
-                <div>
-                  <strong>{p.title}</strong>
-                  <p className="muted" style={{ marginTop: "0.25rem" }}>
-                    {p.description}
-                  </p>
-                </div>
+            {projects.map((p) => {
+              const elig = eligibilityByProjectId.get(p.id);
+              return (
+                <li key={p.id} className="item-row stack">
+                  <div>
+                    <strong>{p.title}</strong>
+                    <p className="muted" style={{ marginTop: "0.25rem" }}>
+                      {p.description}
+                    </p>
+                  </div>
 
-                <div className="row">
-                  {(p.skills ?? []).length === 0 ? (
-                    <span className="muted">No skills attached yet.</span>
-                  ) : (
-                    (p.skills ?? []).map((skillId) => (
-                      <form
-                        key={skillId}
-                        action={removeProjectSkillAction}
-                        className="row"
-                      >
-                        <input type="hidden" name="projectId" value={p.id} />
-                        <input type="hidden" name="skillId" value={skillId} />
-                        <span className="badge badge-accent">
-                          {skillDisplayById.get(skillId) ?? skillId}
-                        </span>
-                        <button
-                          type="submit"
-                          className="btn btn-sm"
-                          aria-label={`Remove skill ${skillDisplayById.get(skillId) ?? skillId}`}
+                  <div className="row">
+                    {(p.skills ?? []).length === 0 ? (
+                      <span className="muted">No skills attached yet.</span>
+                    ) : (
+                      (p.skills ?? []).map((skillId) => (
+                        <form
+                          key={skillId}
+                          action={removeProjectSkillAction}
+                          className="row"
                         >
-                          Remove
-                        </button>
-                      </form>
-                    ))
-                  )}
-                </div>
+                          <input type="hidden" name="projectId" value={p.id} />
+                          <input type="hidden" name="skillId" value={skillId} />
+                          <span className="badge badge-accent">
+                            {skillDisplayById.get(skillId) ?? skillId}
+                          </span>
+                          <button
+                            type="submit"
+                            className="btn btn-sm"
+                            aria-label={`Remove skill ${skillDisplayById.get(skillId) ?? skillId}`}
+                          >
+                            Remove
+                          </button>
+                        </form>
+                      ))
+                    )}
+                  </div>
 
-                <ProjectSkillEditor projectId={p.id} />
+                  <ProjectSkillEditor projectId={p.id} />
 
-                <div className="row">
-                  <form action={updateProjectAction} className="row">
-                    <input type="hidden" name="projectId" value={p.id} />
-                    <input
-                      name="title"
-                      defaultValue={p.title}
-                      aria-label="Project title"
+                  {elig && elig.isGithubLinked && elig.showSurface ? (
+                    <CommitPostPanel
+                      initialEligibility={elig}
+                      shareFlowGuide={LINKEDIN_SHARE_FLOW_GUIDE_COPY}
                     />
-                    <input
-                      name="description"
-                      defaultValue={p.description}
-                      aria-label="Project description"
-                    />
-                    <button type="submit" className="btn btn-sm">
-                      Save
-                    </button>
-                  </form>
-                  <form action={deleteProjectAction}>
-                    <input type="hidden" name="projectId" value={p.id} />
-                    <button type="submit" className="btn btn-sm btn-danger">
-                      Delete
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
+                  ) : null}
+
+                  <div className="row">
+                    <form action={updateProjectAction} className="row">
+                      <input type="hidden" name="projectId" value={p.id} />
+                      <input
+                        name="title"
+                        defaultValue={p.title}
+                        aria-label="Project title"
+                      />
+                      <input
+                        name="description"
+                        defaultValue={p.description}
+                        aria-label="Project description"
+                      />
+                      <button type="submit" className="btn btn-sm">
+                        Save
+                      </button>
+                    </form>
+                    <form action={deleteProjectAction}>
+                      <input type="hidden" name="projectId" value={p.id} />
+                      <button type="submit" className="btn btn-sm btn-danger">
+                        Delete
+                      </button>
+                    </form>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

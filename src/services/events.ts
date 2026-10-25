@@ -2,26 +2,29 @@ import { Prisma } from "@prisma/client";
 import { db, type EventLog } from "@/lib/db";
 import type { Source } from "@/lib/auth";
 import {
+  clampQuizDeltaForSkill,
   DEFAULT_POINTS,
   DEFAULT_SOURCE_WEIGHTS,
   getConfig,
   recomputeUserSkill,
 } from "@/services/levels";
 
-// Fixed vocabulary (D25 + S1). skill_tagged, project_added, and resume_imported
-// carry zero points: they are history/audit, not evidence — idle clicks can't
-// farm the earned bar (D36).
+// Fixed vocabulary (D25 + S1 + S1.5). skill_tagged, project_added,
+// resume_imported, and post_drafted carry zero points: they are history/audit,
+// not evidence — idle clicks can't farm the earned bar (D36).
 export const EVENT_TYPES = [
   "skill_tagged",
   "project_added",
   "manual_evidence",
   "interview_passed", // reserved for S2
-  "quiz_completed", // reserved for S1.5 / S4
+  "quiz_completed", // S1.5 calibration quizzes (signed deltas allowed)
   "system_adjustment",
   "repo_imported",
   "work_experience_added",
   "work_experience_confirmed",
   "resume_imported", // audit only, 0 points
+  "certificate_added", // S1.5 externally anchored certificates
+  "post_drafted", // S1.5 commit->post anchor, audit only, 0 points
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
@@ -35,7 +38,7 @@ export async function basePoints(
   type: EventType,
   source: Source
 ): Promise<number> {
-  if (type === "resume_imported") return 0;
+  if (type === "resume_imported" || type === "post_drafted") return 0;
   const [types, weights] = await Promise.all([
     getConfig("points.types", DEFAULT_POINTS),
     getConfig("points.sourceWeights", DEFAULT_SOURCE_WEIGHTS),
@@ -50,6 +53,7 @@ export interface AppendEventInput {
   type: EventType;
   skills?: string[];
   occurredAt?: Date;
+  now?: Date;
   payload?: Record<string, unknown>;
   pointsOverride?: number;
 }
@@ -61,18 +65,42 @@ export async function appendEvent(input: AppendEventInput): Promise<EventLog> {
   if (!SOURCES.includes(input.source)) {
     throw new Error(`unknown source: ${input.source}`);
   }
+  const refNow = input.now ?? new Date();
   // Clamp to ≤ now: backdated evidence is honest, future-dated dodges decay.
   const occurredAt =
-    input.occurredAt && input.occurredAt.getTime() < Date.now()
+    input.occurredAt && input.occurredAt.getTime() <= refNow.getTime()
       ? input.occurredAt
-      : new Date();
+      : refNow;
 
-  const computedPoints =
-    input.type === "resume_imported"
-      ? 0
-      : input.pointsOverride !== undefined
-        ? Math.max(0, Math.round(input.pointsOverride))
-        : await basePoints(input.type, input.source);
+  let computedPoints: number;
+  if (input.type === "resume_imported" || input.type === "post_drafted") {
+    computedPoints = 0;
+  } else if (input.pointsOverride !== undefined) {
+    if (input.type === "quiz_completed") {
+      // D59/D76: narrow negative lane ONLY for quiz_completed, bounded so the
+      // decayed quiz-source contribution for the skill never drops below 0.
+      const rawOverride = Math.round(input.pointsOverride);
+      if (rawOverride < 0 && input.skills && input.skills.length > 0) {
+        let bounded = rawOverride;
+        for (const skillId of input.skills) {
+          const perSkillBound = await clampQuizDeltaForSkill(
+            input.userId,
+            skillId,
+            rawOverride,
+            occurredAt
+          );
+          bounded = Math.max(bounded, perSkillBound);
+        }
+        computedPoints = bounded;
+      } else {
+        computedPoints = rawOverride;
+      }
+    } else {
+      computedPoints = Math.max(0, Math.round(input.pointsOverride));
+    }
+  } else {
+    computedPoints = await basePoints(input.type, input.source);
+  }
 
   const event = await db.eventLog.create({
     data: {

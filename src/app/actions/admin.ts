@@ -9,6 +9,20 @@ import {
   mergeCandidate,
   rejectCandidate,
 } from "@/services/skill-admin";
+import {
+  adminGenerateQuizBanksNow,
+  approveQuizBankReview,
+  retireAndReplaceQuizBank,
+  setQuizStrictReviewGating,
+} from "@/services/quiz-banks";
+import {
+  applyReplayMaintenanceJob,
+  runWhatIfReplay,
+  setReplayFeatureFlags,
+  type ApplyReplayMaintenanceResult,
+  type WhatIfReplayResult,
+} from "@/services/replay";
+import type { ScoringConfigOverride } from "@/services/levels";
 import { createInviteCode } from "@/services/waitlist";
 import { runSmokeProbe, setFeatureFlag } from "@/services/probe";
 import { runStorageProbe } from "@/services/storage";
@@ -63,7 +77,7 @@ export async function runSmokeProbeAction() {
     status: result.status,
     message:
       result.status === "ok"
-        ? `via ${result.via} — ${usage?.inputTokens}/${usage?.outputTokens} tokens, $${usage?.costUsd.toFixed(5)}`
+        ? `via ${result.via} - ${usage?.inputTokens}/${usage?.outputTokens} tokens, $${usage?.costUsd.toFixed(5)}`
         : result.message,
   };
 }
@@ -96,6 +110,110 @@ export async function generateDefinitionsAction() {
       status: "error",
       message:
         err instanceof Error ? err.message : "Definition generation failed",
+    };
+  }
+}
+
+export async function generateQuizBanksNowAction(skillId: string): Promise<{
+  status: "ok" | "error";
+  message: string;
+}> {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") {
+    return { status: "error", message: "Admin access required" };
+  }
+  try {
+    const banks = await adminGenerateQuizBanksNow(user, skillId);
+    revalidatePath("/admin");
+    return {
+      status: "ok",
+      message: `Generated ${banks.length} bank(s) across bands (${banks.map((b) => `${b.band}: ${b.status}`).join(", ")}).`,
+    };
+  } catch (err) {
+    return {
+      status: "error",
+      message: err instanceof Error ? err.message : "Bank generation failed",
+    };
+  }
+}
+
+export async function approveQuizBankReviewAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") return;
+  const bankId = String(formData.get("bankId") ?? "");
+  await approveQuizBankReview(user, bankId);
+  revalidatePath("/admin");
+}
+
+export async function retireAndReplaceQuizBankAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") return;
+  const bankId = String(formData.get("bankId") ?? "");
+  await retireAndReplaceQuizBank(user, { bankId });
+  revalidatePath("/admin");
+}
+
+export async function toggleStrictReviewGatingAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") return;
+  const enabled = String(formData.get("enabled") ?? "") === "true";
+  await setQuizStrictReviewGating(user, enabled);
+  revalidatePath("/admin");
+}
+
+export async function toggleReplayFlagsAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") return;
+  const flagType = String(formData.get("flagType") ?? "");
+  const enabled = String(formData.get("enabled") ?? "") === "true";
+  if (flagType === "whatIf") {
+    await setReplayFeatureFlags(user, { whatIfEnabled: enabled });
+  } else if (flagType === "apply") {
+    await setReplayFeatureFlags(user, { applyEnabled: enabled });
+  }
+  revalidatePath("/admin");
+}
+
+export async function runWhatIfReplayAction(
+  candidateOverride: ScoringConfigOverride
+): Promise<
+  { ok: true; data: WhatIfReplayResult } | { ok: false; message: string }
+> {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") {
+    return { ok: false, message: "Admin access required" };
+  }
+  try {
+    const data = await runWhatIfReplay(user, candidateOverride);
+    return { ok: true, data };
+  } catch (err) {
+    return {
+      ok: false,
+      message: err instanceof Error ? err.message : "Replay failed",
+    };
+  }
+}
+
+export async function applyReplayMaintenanceAction(
+  candidateOverride: ScoringConfigOverride
+): Promise<
+  | { ok: true; data: ApplyReplayMaintenanceResult }
+  | { ok: false; message: string }
+> {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") {
+    return { ok: false, message: "Admin access required" };
+  }
+  try {
+    const data = await applyReplayMaintenanceJob(user, candidateOverride);
+    revalidatePath("/admin");
+    revalidatePath("/skills");
+    revalidatePath("/how-levels-work");
+    return { ok: true, data };
+  } catch (err) {
+    return {
+      ok: false,
+      message: err instanceof Error ? err.message : "Replay apply failed",
     };
   }
 }

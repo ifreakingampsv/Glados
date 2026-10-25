@@ -745,6 +745,115 @@ fixed below. Learner accepted every recommendation ("all as recommended", 2026-1
   only for users who never explicitly chose. The toggle shows the current effective
   mode; the "manual switch always wins and persists" promise holds across sessions.
 
+## S1.5 design chat (2026-10-11 — the four S1 spec-time leftovers argued; spec same session)
+
+- **[D74] Commit→post milestone mechanics (D40 resolved; learner direction, details
+  delegated, 2026-10-11):** milestone = a DERIVED, STATELESS gate — the learner
+  REJECTED the explicit button ("users can just self-claim things"). Eligibility for
+  "draft a post" on a GitHub-linked project = count of USER-AUTHORED commits (D46
+  rule 2) on the linked repo since the last `post_drafted` event for that project
+  (or since repo import when none) ≥ `posts.minCommitsPerMilestone` (config row,
+  default 10, tuned in the admin console — learner will tune). NO milestone event
+  type, NO per-project status column: the audit trail is its own "since" anchor;
+  eligibility is computed live at check time through the existing live Clerk-token
+  fetch pattern (D67; nothing stored). SIGNAL = PUSHED commits only — local commits
+  are invisible until pushed (the D46 verifiability boundary; from the user's view
+  nothing changes: commit locally, push, the work counts). Non-GitHub projects
+  (manual, promoted-from-experience) get NO post-unlock in v1 — the feature is
+  GitHub-grounded by construction (D22). UNIT: raw user-authored commit count —
+  cheapest verifiable unit, no per-commit stats calls, the same fetch the draft
+  generator needs anyway; issues/PRs-closed ("tickets") penalize students who don't
+  use issue trackers and add API surface (parked as an alternative config signal);
+  user-declared phases reintroduce self-claim (rejected). Sizing tradeoff recorded:
+  5 = every weekend's churn; 25+ = months between unlocks (feature feels dead);
+  10 ≈ several focused sessions. ONE dial + the D22 weekly cap (1–2 posts/week,
+  enforced at draft action) bounds output. Posting/drafting stays ALWAYS
+  user-triggered (D40); evidence writes stay automatic with no user toggle
+  (learner: progress doesn't need user-side flexibility).
+- **[D75] Certificate allowlist seed + shape (D57 resolved; learner agreed with the
+  argued direction, 2026-10-11):** VERIFIABLE-ONLY — allowlist rows exist only for
+  providers with public verify-URL patterns; trusted-but-unverifiable providers
+  (AWS, Microsoft, LinkedIn Learning) fall to the plain-CLAIM tier, no badge, no
+  elevated weight (removes the paste-any-PDF cheat surface; the ladder slot's
+  "externally anchored" meaning survives). Submission shape for allowlisted rows:
+  provider + verify URL REQUIRED, cert PDF optional (stored via the storage module,
+  private bucket). Verification = one fetch of the public page (cached per URL),
+  200 + name-on-page soft match (mismatch = warning, never gate). Course→skill
+  mapping = one cached gateway call per course (D4); the user CONFIRMS the mapped
+  skills at submission (construction/selection split). Issue date from the verify
+  page when present, user-entered otherwise (decay-critical, D57). Seed list
+  (agent-delegated; CURRENT URL shapes verified at build): Coursera, edX,
+  DeepLearning.AI (Coursera-hosted), Udacity, freeCodeCamp, Google/Meta career
+  certificates (Coursera-hosted), DataCamp, Codecademy, Educative, HackerRank,
+  MongoDB University. Config row: `certs.providers`.
+- **[D76] Signed-delta retake mechanics (D59 spec-time edges resolved; learner
+  agreed, 2026-10-11):** (a) CLAMP FIX — `appendEvent` gains ONE narrow permission:
+  `quiz_completed` may carry negative points; every other event type keeps the ≥0
+  seatbelt. The bound is computed in the QUIZ SERVICE (the door stays dumb, policy
+  lives with the feature that owns it): delta ≥ −(current DECAYED quiz-source
+  contribution to that user+skill's score) — quiz credit floors at zero in
+  `user_skills`, never goes negative, never eats repo/work-exp/cert evidence.
+  (Decayed floor chosen over raw-sum floor: raw would let the decayed quiz
+  contribution render negative while the raw sum stays ≥0.) (b) COOLDOWN — per
+  SKILL (not per band), rolling 7 days from a COMPLETED session's end; the
+  staircase already traverses bands inside one session, so per-band granularity
+  only preserves the band-hopping dodge. Abandoned sessions (< half the first
+  round answered) write NOTHING and don't consume the cooldown. (c) DECAY-0-DELTA
+  EDGE — ACCEPTED, no refresh mechanism: a same-level retake writes delta 0 and
+  old quiz events keep decaying (staleness is the honest core; refresh-by-retake
+  = farming; decay-relative deltas break the sum-of-deltas-equals-latest
+  auditability). `quiz_completed` payload records settled band + per-band
+  correct/total (feeds the D68 divergence readout).
+- **[D77] Quiz telemetry thresholds (D47/D59 readout gates resolved; learner
+  agreed, 2026-10-11):** data shape = `quiz_sessions` + `quiz_answers` tables
+  (per-question outcomes + durations; durations are client-clock TELEMETRY, never
+  evidence). Rule shape = PER-READOUT MINIMUMS as config rows (flat gate and
+  show-with-caveats rejected — one N can't serve different noise floors, and
+  caveat-laden dashboards train admins to ignore them): per-question success
+  ≥ ~20 answers per question; completion ≥ ~10 sessions per bank; drop-off index
+  ≥ ~20 sessions; time per question ≥ ~50 answers; retake frequency on a 30-day
+  window; divergence panel only for skills with ≥3 users holding BOTH evidence
+  and quiz data. ONE alert: a question with ≥20 answers and <20% success
+  auto-flags into the bank spot-review queue (D59 QA); everything else
+  display-only, consumed at D47 tuning sessions per ramp stage. Telemetry panels
+  are AGGREGATE-ONLY (no named users).
+
+**S1.5 OQ LIST CLOSED** — all four S1 spec-time items resolved into [D74]–[D77]
+(2026-10-11). PIPELINE CORRECTION (learner, same day): a spec draft was written
+before /grill-with-docs ran — standing rule 3 requires design → grill → spec.
+The draft was parked and the grill then ran in THIS chat (2026-10-11).
+
+- **[D78] S1.5 grill outcomes (7/7 recommendations accepted by learner,
+  2026-10-11):** (a) CODE CATCH — the D46(5) corroboration cap was never shipped:
+  `recomputeUserSkill` sums all events with no source-aware cap, so repo-only
+  users could already exceed L3. ENFORCED in S1.5 inside the single-writer
+  recompute: when a skill's evidenced events contain only cap-limited source
+  types, the computed level clamps at L3; quiz + one imported source (the D46(4)
+  pairing) = uncapped. Quiz is deliberately BOTH cap-limited (weighs below
+  projects) and a corroborator. (b) D59 review-gating AMENDED: banks go live on
+  deterministic lint pass (dedupe, one correct option, tags present); admin
+  spot-review runs asynchronously and retires bad banks via new bank version;
+  a feature flag can flip back to strict review-gating if lint-pass rates are
+  ugly. Resolves the D59×D70 conflict (lazy generation + review-before-live
+  would wall off the first taker). (c) First take on a skill enqueues bank
+  generation for ALL THREE bands (3 batched D4-cached calls, once ever) — no
+  mid-session waits when the staircase steps up. (d) Session start band = the
+  band matching the HIGHER of claimed/self-assessed and evidenced level
+  (self-assessment is a placement hint, never score input; D24 stands; default
+  L0–1 when neither exists). (e) D60 GAP FILLED: quiz-taking is free and
+  UNCAPTED in v1 (zero marginal cost; the 7-day cooldown is the only rate
+  limit); attractor-style cap is one config row away if abuse appears. (f) D34
+  AMENDED (narrow): shared-cache gateway features (`bank_gen`, `cert_course_map`)
+  route PLATFORM-only — the first taker must not fund a shared asset with a BYO
+  key (shipped `skill_definition` precedent); personal-output features
+  (`post_draft`) keep BYO auto-win. (g) D74 anchor confirmed: `post_drafted`
+  resets the commit counter even if the post never happens (anti-spam ratchet;
+  no honor-system "I posted" button). Fold-ins without decisions: admin evidence
+  panel grows section headings (not tabs); certificate verify results cache on
+  the certificate row (not the LLM gateway cache). SPEC FINALIZED:
+  specs/s1.5-calibration.md (2026-10-11). NEXT: /to-tickets (learner quizzes the
+  breakdown before publishing) → implementation chats (VibeWise paused).
+
 ## Open questions for the VibeWise design chat (argue these first)
 
 1. Spine schema details: skills alias table design; evidence → level computation.

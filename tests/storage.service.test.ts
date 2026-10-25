@@ -120,4 +120,45 @@ describe("storage service over Cloudflare R2 (seam: storage contract + service l
     expect(probe.deleted).toBe(true);
     expect(probe.signedUrlExpiresSeconds).toBeLessThanOrEqual(900);
   });
+
+  it("extends the private-bucket contract to certificate PDFs (put/get/signed URL/delete)", async () => {
+    const fakeS3 = createInMemoryS3Fetch();
+    const adapter = createR2Adapter(
+      {
+        endpoint: "https://acct123.r2.cloudflarestorage.com",
+        bucket: "glados-private",
+        accessKeyId: "AKIAIOSFODNN7EXAMPLE",
+        secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+      },
+      fakeS3.fetch
+    );
+
+    const certPayload = new TextEncoder().encode("certificate-pdf-bytes");
+    const certKey = "certificates/user-1/coursera-cert.pdf";
+    const putRes = await putObject(
+      {
+        key: certKey,
+        body: certPayload,
+        contentType: "application/pdf",
+      },
+      adapter
+    );
+
+    expect(putRes.key).toBe(certKey);
+    expect(putRes.contentType).toBe("application/pdf");
+
+    const fetched = await getObject(certKey, adapter);
+    expect(fetched).not.toBeNull();
+    expect(new TextDecoder().decode(fetched!.body)).toBe(
+      "certificate-pdf-bytes"
+    );
+
+    const signedUrl = await getSignedDownloadUrl(certKey, 240, adapter);
+    const parsed = new URL(signedUrl);
+    expect(parsed.pathname).toBe(`/glados-private/${certKey}`);
+    expect(parsed.searchParams.get("X-Amz-Expires")).toBe("240");
+
+    await deleteObject(certKey, adapter);
+    expect(await getObject(certKey, adapter)).toBeNull();
+  });
 });

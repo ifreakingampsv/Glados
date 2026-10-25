@@ -361,4 +361,78 @@ model AnonymousScan {
   @@index([expiresAt])
 }
 
+// S1.5: Per-skill calibration quiz banks (D41/D59/D70/D78).
+model QuizBank {
+  id          String         @id @default(cuid())
+  skillId     String
+  band        String         // L0-1 | L2-3 | L4-5
+  version     Int            @default(1)
+  status      String         @default("generating") // generating | live | retired | needs_review
+  generatedAt DateTime       @default(now())
+  questions   QuizQuestion[]
 
+  @@unique([skillId, band, version])
+  @@index([skillId, status])
+}
+
+model QuizQuestion {
+  id           String   @id @default(cuid())
+  bankId       String
+  bank         QuizBank @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  prompt       String
+  options      Json     // string[]
+  correctIndex Int
+  tags         String[] @default([])
+
+  @@index([bankId])
+}
+
+// S1.5: Staircase quiz sessions and client-clock telemetry answers (D59/D76/D77).
+model QuizSession {
+  id             String       @id @default(cuid())
+  userId         String
+  skillId        String
+  bankVersion    Int
+  bandStart      String
+  bandSettled    String?
+  startedAt      DateTime     @default(now())
+  endedAt        DateTime?
+  outcome        String       @default("in_progress") // in_progress | completed | abandoned
+  questionsAsked Int          @default(0)
+  correctCount   Int          @default(0)
+  answers        QuizAnswer[]
+
+  @@index([userId, skillId])
+  @@index([skillId, outcome])
+}
+
+model QuizAnswer {
+  id         String      @id @default(cuid())
+  sessionId  String
+  session    QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questionId String
+  band       String
+  correct    Boolean
+  ms         Int
+  position   Int
+
+  @@index([sessionId, position])
+  @@index([questionId])
+}
+
+// S1.5: Externally verifiable or claim-tier certificates (D57/D75).
+model Certificate {
+  id         String    @id @default(cuid())
+  userId     String
+  provider   String
+  verifyUrl  String
+  verifiedAt DateTime?
+  courseName String
+  issuedOn   DateTime
+  skills     String[]  @default([])
+  storageKey String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+}

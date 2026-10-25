@@ -89,4 +89,36 @@ describe("event log (T08: append-only, clamped, trust-weighted)", () => {
     expect(displays).toEqual(["Kotlin"]);
     await db.skill.delete({ where: { id: merged.id } });
   });
+
+  it("accepts negative pointsOverride ONLY for quiz_completed and floors every other event type at 0", async () => {
+    const nonQuizTypes = [
+      "manual_evidence",
+      "repo_imported",
+      "work_experience_added",
+      "work_experience_confirmed",
+      "certificate_added",
+      "interview_passed",
+      "system_adjustment",
+      "resume_imported",
+      "post_drafted",
+    ] as const;
+
+    for (const type of nonQuizTypes) {
+      const ev = await appendEvent({
+        userId: user.id,
+        source: "web",
+        type,
+        pointsOverride: -10,
+      });
+      expect(ev.points).toBe(0);
+    }
+
+    const quizNeg = await appendEvent({
+      userId: user.id,
+      source: "web",
+      type: "quiz_completed",
+      pointsOverride: -6,
+    });
+    expect(quizNeg.points).toBe(-6);
+  });
 });

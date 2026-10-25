@@ -3,14 +3,23 @@ import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { listUserSkills } from "@/services/skills";
 import { listProjects } from "@/services/projects";
+import { listUserCertificates } from "@/services/certificates";
 import { describeUserSkillProvenance } from "@/services/work-experience";
 
 export const dynamic = "force-dynamic";
 
 export default async function HowLevelsWorkPage() {
   const user = await getSessionUser();
-  const userSkills = user ? await listUserSkills(user.id) : [];
-  const projects = user ? await listProjects(user.id) : [];
+  const [userSkills, projects, certificates, completedQuizCount] = user
+    ? await Promise.all([
+        listUserSkills(user.id),
+        listProjects(user.id),
+        listUserCertificates(user.id),
+        db.quizSession.count({
+          where: { userId: user.id, outcome: "completed" },
+        }),
+      ])
+    : [[], [], [], 0];
   const skillIds = userSkills.map((u) => u.skillId);
   const skillRows = skillIds.length
     ? await db.skill.findMany({ where: { id: { in: skillIds } } })
@@ -26,9 +35,9 @@ export default async function HowLevelsWorkPage() {
     <main>
       <h1>How levels and provenance work</h1>
       <p className="lede">
-        Every skill on your profile carries an explicit provenance label so
-        recruiters and gap maps distinguish verified engineering artifacts from
-        unvalidated claims.
+        Every skill on your profile carries an explicit provenance label and
+        climbs a multi-source trust ladder so recruiters and gap maps
+        distinguish corroborated engineering evidence from unvalidated claims.
       </p>
 
       <section className="section-card">
@@ -43,8 +52,9 @@ export default async function HowLevelsWorkPage() {
             <p className="muted">
               Backed by verifiable events in your append-only log: imported
               non-fork GitHub repositories, structured work experience entries,
-              projects in your project bank, and completed assessments. Points
-              decay with a 90-day half-life so active skills stay current.
+              verified certificates from allowlisted providers, projects in your
+              project bank, and completed calibration quizzes. Points decay with
+              a 90-day half-life so active skills stay current.
             </p>
           </li>
           <li className="item-row stack">
@@ -55,9 +65,10 @@ export default async function HowLevelsWorkPage() {
             </div>
             <p className="muted">
               Explicitly rated by you (L1 to L5) for skills where you have not
-              attached a repository or work artifact yet. Fills zero-evidence
-              holes in gap maps at half weight and never modifies your evidenced
-              score.
+              attached a repository, certificate, or quiz yet. Fills
+              zero-evidence holes in gap maps at half weight, serves as a
+              start-band placement hint for calibration quizzes, and never
+              modifies your evidenced score.
             </p>
           </li>
           <li className="item-row stack">
@@ -67,20 +78,70 @@ export default async function HowLevelsWorkPage() {
               </span>
             </div>
             <p className="muted">
-              Parsed from a resume or LinkedIn export without corroborating
-              project or work-experience evidence. Evidence always wins when a
-              skill has both an evidenced level and a claim.
+              Parsed from a resume, LinkedIn export, or off-list certificate
+              without corroborating evidence. Evidence always wins when a skill
+              has both an evidenced level and a claim.
             </p>
           </li>
         </ul>
       </section>
 
       <section className="section-card">
+        <h2>Calibration rungs: quizzes and certificates</h2>
+        <ul className="item-list">
+          <li className="item-row stack">
+            <div>
+              <strong>
+                Calibration quizzes (free, uncapped, 7-day cooldown)
+              </strong>
+            </div>
+            <p className="muted">
+              Every canonical leaf skill exposes a 6-question-round staircase
+              across bands L0-1, L2-3, and L4-5 (hard cap 18 questions). Your
+              session starts at the higher of your claimed or evidenced band.
+              Retakes write signed deltas bounded strictly to prior decayed quiz
+              credit: a lower retake can reduce quiz points to zero, but can
+              never reduce your repository, work-experience, or certificate
+              evidence.
+            </p>
+          </li>
+          <li className="item-row stack">
+            <div>
+              <strong>Externally verified certificates</strong>
+            </div>
+            <p className="muted">
+              Certificates from allowlisted providers (Coursera, AWS, Google
+              Cloud, HashiCorp, CNCF, edX, Microsoft Learn, freeCodeCamp, Linux
+              Foundation, HackerRank) are verified against their public verify
+              URLs and decay from their issue date. Off-list or unverified
+              certificates are stored as 0.5x claims with a one-line prompt to
+              verify via a 6-question check.
+            </p>
+          </li>
+        </ul>
+      </section>
+
+      <section className="section-card">
+        <h2>The Level 3 single-source corroboration cap</h2>
+        <p className="muted">
+          No single cap-limited evidence source (only imported GitHub repos,
+          only work experience, only certificates, or only a calibration quiz)
+          can push a skill past <strong>Level 3 (Proficient)</strong> on its
+          own. Even if a single source accumulates enough raw points for Level 4
+          or Level 5, the level clamps at Level 3 until a{" "}
+          <strong>second distinct evidence source type</strong> (for example, an
+          imported repository corroborated by a calibration quiz or verified
+          certificate) confirms the skill.
+        </p>
+      </section>
+
+      <section className="section-card">
         <h2>Worked example from your profile</h2>
         {!user || userSkills.length === 0 ? (
           <p className="empty-state">
-            You do not have any skills on your profile yet. Import a resume or
-            connect GitHub to see your own skills calculated here.
+            You do not have any skills on your profile yet. Import a resume,
+            connect GitHub, or take a skill quiz to see your own skills
+            calculated here.
           </p>
         ) : (
           <div className="stack">
@@ -96,7 +157,9 @@ export default async function HowLevelsWorkPage() {
                 </span>{" "}
                 at <strong>Level {sampleEvidenced.level}</strong> (
                 {sampleEvidenced.score.toFixed(1)} decayed points). Against a
-                Level 3 requirement, it receives full 1.0x provenance weight.
+                Level 3 requirement, it receives full 1.0x provenance weight. To
+                reach Level 4 or Level 5, it requires at least two distinct
+                corroborating evidence source types.
               </div>
             )}
             {sampleClaimed && (
@@ -111,12 +174,14 @@ export default async function HowLevelsWorkPage() {
                 </span>{" "}
                 (Claimed L{sampleClaimed.claimedLevel ?? 1}, 0.0 evidenced
                 points). Against a requirement, its credit is capped by the 0.5x
-                claim weight until you attach a project or work artifact.
+                claim weight until you take a 6-question calibration check or
+                attach a project, work artifact, or verified certificate.
               </div>
             )}
             <p className="muted">
-              You currently have {projects.length} project(s) in your curated
-              project bank.
+              Your profile currently holds {projects.length} project(s),{" "}
+              {certificates.length} certificate(s), and {completedQuizCount}{" "}
+              completed calibration quiz session(s).
             </p>
           </div>
         )}
@@ -125,16 +190,19 @@ export default async function HowLevelsWorkPage() {
       <section className="section-card">
         <h2>Verify more skills</h2>
         <p className="muted" style={{ marginBottom: "0.75rem" }}>
-          Convert 0.5x claims into 1.0x evidenced skills by importing public
-          GitHub repositories, tagging skills on your shipped projects, or
-          confirming work experience entries.
+          Convert 0.5x claims into 1.0x evidenced skills and uncap Level 3
+          skills by combining calibration quizzes, public GitHub repositories,
+          verified certificates, and confirmed work experience entries.
         </p>
-        <div className="row">
-          <Link href="/projects" className="btn btn-primary">
+        <div className="row" style={{ flexWrap: "wrap" }}>
+          <Link href="/skills" className="btn btn-primary">
+            Take a 6-question skill check
+          </Link>
+          <Link href="/projects" className="btn">
             Import repos or tag projects
           </Link>
           <Link href="/profile" className="btn">
-            Manage work experience
+            Manage work experience & certificates
           </Link>
           <Link href="/gaps" className="btn">
             Return to gap map

@@ -53,8 +53,126 @@ export const DEFAULT_ECONOMICS_ASSUMPTIONS = {
   targetMargin: 0.5,
 };
 
+export const DEFAULT_QUIZ_BANDS = [
+  { band: "L0-1", minLevel: 0, maxLevel: 1 },
+  { band: "L2-3", minLevel: 2, maxLevel: 3 },
+  { band: "L4-5", minLevel: 4, maxLevel: 5 },
+];
+
+export const DEFAULT_QUIZ_SCORING: Record<string, number> = {
+  "L0-1": 1,
+  "L2-3": 2,
+  "L4-5": 4,
+};
+
+export const DEFAULT_TELEMETRY_MINIMUMS = {
+  perQuestionAnswers: 20,
+  completionSessionsPerBank: 10,
+  dropOffSessions: 20,
+  timePerQuestionAnswers: 50,
+  retakeWindowDays: 30,
+  divergenceMinUsers: 3,
+};
+
+export const DEFAULT_TELEMETRY_ALERT_THRESHOLD = {
+  minAnswers: 20,
+  maxSuccessRate: 0.2,
+};
+
+export interface CertProviderConfig {
+  slug: string;
+  name: string;
+  verifyPattern: string;
+  exampleUrl: string;
+}
+
+export const DEFAULT_CERT_PROVIDERS: CertProviderConfig[] = [
+  {
+    slug: "coursera",
+    name: "Coursera",
+    verifyPattern:
+      "^https://(www\\.)?coursera\\.org/account/accomplishments/(verify|certificate|specialization|professional-cert)/[A-Za-z0-9_-]+",
+    exampleUrl:
+      "https://www.coursera.org/account/accomplishments/verify/ABC123XYZ",
+  },
+  {
+    slug: "edx",
+    name: "edX",
+    verifyPattern:
+      "^https://(courses\\.edx\\.org/certificates/[a-f0-9]{32}|credentials\\.edx\\.org/credentials/[a-f0-9-]+)",
+    exampleUrl:
+      "https://courses.edx.org/certificates/0123456789abcdef0123456789abcdef",
+  },
+  {
+    slug: "deeplearning-ai",
+    name: "DeepLearning.AI",
+    verifyPattern:
+      "^https://(learn\\.deeplearning\\.ai/accomplishments/[A-Za-z0-9_-]+|(www\\.)?coursera\\.org/account/accomplishments/(verify|certificate|specialization)/[A-Za-z0-9_-]+)",
+    exampleUrl: "https://learn.deeplearning.ai/accomplishments/abc123xyz",
+  },
+  {
+    slug: "udacity",
+    name: "Udacity",
+    verifyPattern:
+      "^https://(www\\.|confirm\\.)?udacity\\.com/(certificate/)?e/[A-Za-z0-9-]+",
+    exampleUrl:
+      "https://www.udacity.com/certificate/e/12345678-abcd-ef01-2345-6789abcdef01",
+  },
+  {
+    slug: "freecodecamp",
+    name: "freeCodeCamp",
+    verifyPattern:
+      "^https://(www\\.)?freecodecamp\\.org/certification/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+",
+    exampleUrl:
+      "https://www.freecodecamp.org/certification/fcc-user/responsive-web-design",
+  },
+  {
+    slug: "google-career-certificates",
+    name: "Google / Meta Career Certificates (Coursera)",
+    verifyPattern:
+      "^https://(www\\.)?coursera\\.org/account/accomplishments/(professional-cert|verify|specialization)/[A-Za-z0-9_-]+",
+    exampleUrl:
+      "https://www.coursera.org/account/accomplishments/professional-cert/GOOGLE123",
+  },
+  {
+    slug: "datacamp",
+    name: "DataCamp",
+    verifyPattern:
+      "^https://(www\\.)?datacamp\\.com/(certificate|statement-of-accomplishment)/[A-Za-z0-9_/-]+",
+    exampleUrl: "https://www.datacamp.com/certificate/SQA0012345678",
+  },
+  {
+    slug: "codecademy",
+    name: "Codecademy",
+    verifyPattern:
+      "^https://(www\\.)?codecademy\\.com/profiles/[A-Za-z0-9_-]+/certificates/[A-Za-z0-9_-]+",
+    exampleUrl:
+      "https://www.codecademy.com/profiles/user123/certificates/abc123def456",
+  },
+  {
+    slug: "educative",
+    name: "Educative",
+    verifyPattern:
+      "^https://(www\\.)?educative\\.io/verify-certificate/[A-Za-z0-9_-]+",
+    exampleUrl: "https://www.educative.io/verify-certificate/XYZ987ABC",
+  },
+  {
+    slug: "hackerrank",
+    name: "HackerRank",
+    verifyPattern:
+      "^https://(www\\.)?hackerrank\\.com/certificates/[A-Za-z0-9_-]+",
+    exampleUrl: "https://www.hackerrank.com/certificates/a1b2c3d4e5f6",
+  },
+  {
+    slug: "mongodb-university",
+    name: "MongoDB University",
+    verifyPattern: "^https://learn\\.mongodb\\.com/c/[A-Za-z0-9_-]+",
+    exampleUrl: "https://learn.mongodb.com/c/1234567890abcdef",
+  },
+];
+
 // Seed only: never overwrites an already-tuned config row, but merges newly
-// introduced S1 dictionary keys into points.types and attractor.caps.
+// introduced S1/S1.5 dictionary keys into points.types and attractor.caps.
 export async function seedConfig() {
   const rows: Array<{ key: string; value: unknown }> = [
     { key: "levels.bands", value: DEFAULT_BANDS },
@@ -82,6 +200,23 @@ export async function seedConfig() {
     { key: "workExperience.scorer", value: DEFAULT_WORK_EXP_SCORER },
     { key: "resume.shrinkBounds", value: DEFAULT_SHRINK_BOUNDS },
     { key: "economics.assumptions", value: DEFAULT_ECONOMICS_ASSUMPTIONS },
+    // S1.5 calibration tunables (D59, D74, D75, D76, D77, D78)
+    { key: "quiz.bands", value: DEFAULT_QUIZ_BANDS },
+    { key: "quiz.roundSize", value: 6 },
+    { key: "quiz.cap", value: 18 },
+    { key: "quiz.stepUp", value: 5 },
+    { key: "quiz.stepDown", value: 2 },
+    { key: "quiz.cooldownDays", value: 7 },
+    { key: "quiz.abandonThreshold", value: 3 },
+    { key: "quiz.scoring", value: DEFAULT_QUIZ_SCORING },
+    { key: "telemetry.minimums", value: DEFAULT_TELEMETRY_MINIMUMS },
+    {
+      key: "telemetry.alertThreshold",
+      value: DEFAULT_TELEMETRY_ALERT_THRESHOLD,
+    },
+    { key: "certs.providers", value: DEFAULT_CERT_PROVIDERS },
+    { key: "posts.minCommitsPerMilestone", value: 10 },
+    { key: "posts.maxPerWeek", value: 2 },
   ];
 
   for (const row of rows) {
@@ -177,6 +312,35 @@ const ROUTES: Array<{
   },
   {
     feature: "linkedin_review",
+    provider: "google",
+    model: "gemini-2.0-flash",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    costPer1kUsd: 0.0015,
+    isActive: true,
+  },
+  // S1.5 calibration gateway features (D78f: bank_gen and cert_course_map are
+  // platform-only shared cache; post_draft is personal output with BYO auto-win).
+  {
+    feature: "bank_gen",
+    provider: "google",
+    model: "gemini-2.0-flash",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    costPer1kUsd: 0.001,
+    isActive: true,
+  },
+  {
+    feature: "cert_course_map",
+    provider: "google",
+    model: "gemini-2.0-flash",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    costPer1kUsd: 0.0005,
+    isActive: true,
+  },
+  {
+    feature: "post_draft",
     provider: "google",
     model: "gemini-2.0-flash",
     endpoint:

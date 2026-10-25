@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import {
   KNOWN_PREFERENCE_KEYS,
@@ -8,6 +10,11 @@ import {
 } from "@/services/profile";
 import { LINKEDIN_PDF_GUIDE_COPY } from "@/services/resume-parse";
 import { listWorkExperiences } from "@/services/work-experience";
+import {
+  CERTIFICATE_QUIZ_NUDGE,
+  getCertProviders,
+  listUserCertificates,
+} from "@/services/certificates";
 import {
   getPendingStagedImports,
   type StagedDiffItem,
@@ -24,6 +31,10 @@ import {
   setPrimaryAction,
   updateSectionAction,
 } from "@/app/actions/profile";
+import {
+  CertificatePanel,
+  type CertificateRowView,
+} from "@/components/certificate-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -38,14 +49,45 @@ export default async function ProfilePage() {
       </main>
     );
   }
-  const [profile, roles, prefs, workExperiences, stagedImports] =
-    await Promise.all([
-      getProfile(user.id),
-      listTargetRoles(user.id),
-      getPreferences(user.id),
-      listWorkExperiences(user.id),
-      getPendingStagedImports(user.id),
-    ]);
+  const [
+    profile,
+    roles,
+    prefs,
+    workExperiences,
+    stagedImports,
+    certProviders,
+    userCertificates,
+  ] = await Promise.all([
+    getProfile(user.id),
+    listTargetRoles(user.id),
+    getPreferences(user.id),
+    listWorkExperiences(user.id),
+    getPendingStagedImports(user.id),
+    getCertProviders(),
+    listUserCertificates(user.id),
+  ]);
+  const allSkillIds = Array.from(
+    new Set([
+      ...workExperiences.flatMap((w) => w.skills ?? []),
+      ...userCertificates.flatMap((c) => c.skills ?? []),
+    ])
+  );
+  const skillRows = allSkillIds.length
+    ? await db.skill.findMany({ where: { id: { in: allSkillIds } } })
+    : [];
+  const skillDisplayById = new Map(skillRows.map((s) => [s.id, s.display]));
+
+  const certViews: CertificateRowView[] = userCertificates.map((c) => ({
+    id: c.id,
+    provider: c.provider,
+    verifyUrl: c.verifyUrl,
+    verifiedAtIso: c.verifiedAt ? c.verifiedAt.toISOString() : null,
+    courseName: c.courseName,
+    issuedOnIso: c.issuedOn.toISOString(),
+    skillLabels: (c.skills ?? []).map((id) => skillDisplayById.get(id) ?? id),
+    hasStorageKey: Boolean(c.storageKey),
+  }));
+
   const fields = profile.fields as Record<string, unknown>;
 
   return (
@@ -53,7 +95,8 @@ export default async function ProfilePage() {
       <h1>Profile</h1>
       <p className="lede">
         Manage your structured spine fields, import your resume or LinkedIn
-        export, review staged updates, and curate work experience evidence.
+        export, review staged updates, curate work experience evidence, and
+        verify certificates.
       </p>
 
       <section className="section-card">
@@ -196,6 +239,21 @@ export default async function ProfilePage() {
                   </div>
                 </div>
                 <p className="muted">{exp.description}</p>
+                {(exp.skills ?? []).length > 0 && (
+                  <div className="row" style={{ flexWrap: "wrap" }}>
+                    {(exp.skills ?? []).map((sid) => (
+                      <span key={sid} className="badge">
+                        {skillDisplayById.get(sid) ?? sid}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="muted" style={{ fontSize: "0.85rem" }}>
+                  Verify with a 6-question check on{" "}
+                  <Link href="/skills">Skills</Link> to corroborate work
+                  experience beyond the Level 3 single-source cap.{" "}
+                  <Link href="/how-levels-work">How levels work</Link>
+                </div>
                 <div className="row">
                   <form action={confirmWorkExperienceAction}>
                     <input
@@ -229,6 +287,12 @@ export default async function ProfilePage() {
           </ul>
         )}
       </section>
+
+      <CertificatePanel
+        providers={certProviders}
+        certificates={certViews}
+        quizNudgeCopy={CERTIFICATE_QUIZ_NUDGE}
+      />
 
       <section className="section-card">
         <h2>Field dictionary (JSON-Resume compatible)</h2>

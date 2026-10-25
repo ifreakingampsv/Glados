@@ -3,8 +3,14 @@ import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { listUserSkills } from "@/services/skills";
 import { describeUserSkillProvenance } from "@/services/work-experience";
+import { isCanonicalLeafSkill } from "@/services/quiz-banks";
+import {
+  getQuizCooldownStatus,
+  resolveStartBandForUserSkill,
+} from "@/services/quiz";
 import { setSelfAssessedSkillAction } from "@/app/actions/profile";
 import { SkillTagger } from "@/components/skill-tagger";
+import { QuizRunner } from "@/components/quiz-runner";
 
 export const dynamic = "force-dynamic";
 
@@ -27,13 +33,51 @@ export default async function SkillsPage() {
     : [];
   const display = new Map(skillRows.map((s) => [s.id, s.display]));
 
+  const quizMetaBySkillId = new Map<
+    string,
+    {
+      isLeaf: boolean;
+      startBand: string;
+      startReason: string;
+      onCooldown: boolean;
+      nextRetakeAtIso: string | null;
+    }
+  >();
+
+  for (const t of tagged) {
+    const isLeaf = await isCanonicalLeafSkill(t.skillId);
+    if (!isLeaf) {
+      quizMetaBySkillId.set(t.skillId, {
+        isLeaf: false,
+        startBand: "L0-1",
+        startReason: "",
+        onCooldown: false,
+        nextRetakeAtIso: null,
+      });
+      continue;
+    }
+    const [placement, cooldown] = await Promise.all([
+      resolveStartBandForUserSkill(user.id, t.skillId),
+      getQuizCooldownStatus(user.id, t.skillId),
+    ]);
+    quizMetaBySkillId.set(t.skillId, {
+      isLeaf: true,
+      startBand: placement.band,
+      startReason: placement.reason,
+      onCooldown: cooldown.onCooldown,
+      nextRetakeAtIso: cooldown.nextRetakeAt
+        ? cooldown.nextRetakeAt.toISOString()
+        : null,
+    });
+  }
+
   return (
     <main>
       <h1>Skills</h1>
       <p className="lede">
         Evidenced levels are computed from your event log with 90-day recency
-        decay. Self-ratings and imported resume claims are stored separately and
-        never alter evidenced scores.{" "}
+        decay and the Level 3 single-source corroboration cap. Taking a
+        calibration check is free and uncapped.{" "}
         <Link href="/how-levels-work">How levels work</Link>
       </p>
 
@@ -46,7 +90,9 @@ export default async function SkillsPage() {
         <h2>Set self-assessed level (zero-evidence fallback)</h2>
         <p className="muted" style={{ marginBottom: "0.75rem" }}>
           Self-assessed levels fill zero-evidence holes in gap maps and display
-          as unvalidated claims. They never increase your evidenced score.
+          as unvalidated claims. They never increase your evidenced score, and
+          serve as a start-band placement hint when you take a calibration
+          check.
         </p>
         <form action={setSelfAssessedSkillAction} className="row">
           <input
@@ -82,32 +128,61 @@ export default async function SkillsPage() {
           <ul className="item-list">
             {tagged.map((t) => {
               const prov = describeUserSkillProvenance(t);
+              const quizMeta = quizMetaBySkillId.get(t.skillId);
+              const skillDisplay = display.get(t.skillId) ?? t.skillId;
               return (
-                <li key={t.id} className="item-row row-between">
-                  <div className="row">
-                    <strong>{display.get(t.skillId) ?? t.skillId}</strong>
-                    <Link
-                      href={prov.explainerHref}
-                      className={`badge ${prov.isUnvalidated ? "badge-warn" : "badge-accent"}`}
-                    >
-                      {prov.label}
-                    </Link>
-                    {prov.isStale && (
-                      <span className="badge badge-warn">
-                        Stale ({t.staleOrigins.join(", ")})
+                <li key={t.id} className="item-row stack">
+                  <div className="row-between" style={{ flexWrap: "wrap" }}>
+                    <div className="row">
+                      <strong>{skillDisplay}</strong>
+                      <Link
+                        href={prov.explainerHref}
+                        className={`badge ${prov.isUnvalidated ? "badge-warn" : "badge-accent"}`}
+                      >
+                        {prov.label}
+                      </Link>
+                      {prov.isStale && (
+                        <span className="badge badge-warn">
+                          Stale ({t.staleOrigins.join(", ")})
+                        </span>
+                      )}
+                    </div>
+                    <div className="row tabular">
+                      <span className="badge badge-accent">
+                        Evidenced L{t.level} ({t.score.toFixed(2)} pts)
                       </span>
-                    )}
+                      {t.claimedLevel ? (
+                        <span className="badge badge-warning">
+                          Claimed L{t.claimedLevel}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
-                  <div className="row tabular">
-                    <span className="badge badge-accent">
-                      Evidenced L{t.level} ({t.score.toFixed(2)} pts)
-                    </span>
-                    {t.claimedLevel ? (
-                      <span className="badge badge-warning">
-                        Claimed L{t.claimedLevel}
-                      </span>
-                    ) : null}
-                  </div>
+
+                  {prov.isUnvalidated && (
+                    <div className="muted" style={{ fontSize: "0.85rem" }}>
+                      Verify with a 6-question check to convert this 0.5x claim
+                      into 1.0x calibrated evidence.{" "}
+                      <Link href="/how-levels-work">How levels work</Link>
+                    </div>
+                  )}
+
+                  {quizMeta?.isLeaf ? (
+                    <QuizRunner
+                      skillId={t.skillId}
+                      skillDisplay={skillDisplay}
+                      startBand={quizMeta.startBand}
+                      startReason={quizMeta.startReason}
+                      onCooldown={quizMeta.onCooldown}
+                      nextRetakeAtIso={quizMeta.nextRetakeAtIso}
+                    />
+                  ) : (
+                    <div className="muted" style={{ fontSize: "0.85rem" }}>
+                      Calibration quizzes are available on canonical leaf skills
+                      only (parent categories and unapproved candidates do not
+                      expose a quiz).
+                    </div>
+                  )}
                 </li>
               );
             })}

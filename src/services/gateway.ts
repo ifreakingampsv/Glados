@@ -181,6 +181,14 @@ async function checkBudgetAlert(): Promise<void> {
   }
 }
 
+// D78f: Shared-cache features (skill_definition, bank_gen, cert_course_map)
+// route PLATFORM-only so a BYO user never funds a shared asset.
+export const PLATFORM_ONLY_FEATURES = new Set([
+  "skill_definition",
+  "bank_gen",
+  "cert_course_map",
+]);
+
 export async function gatewayCall(
   input: GatewayCallInput,
   fetchImpl: typeof fetch = fetch
@@ -204,8 +212,12 @@ export async function gatewayCall(
 
   const route = await resolveRoute(input.feature);
 
-  const byoKey = await getDecryptedCredential(input.userId, route.provider);
-  if (byoKey && !input.forcePlatform) {
+  const isPlatformOnly =
+    Boolean(input.forcePlatform) || PLATFORM_ONLY_FEATURES.has(input.feature);
+  const byoKey = isPlatformOnly
+    ? null
+    : await getDecryptedCredential(input.userId, route.provider);
+  if (byoKey && !isPlatformOnly) {
     // BYO auto-wins (D34): zero marginal cost is the D2 principle.
     try {
       const response = await callOpenAI(
