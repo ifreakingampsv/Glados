@@ -453,6 +453,9 @@ const ROUTES: Array<{
   },
   // S3a (D92/D96g): annotations are a SHARED asset — platform-only (D78f,
   // bank_gen precedent), 120s timeout at the call site (bank/grade class).
+  // Light-model home: oxionai gemma-2-2b (~$0.0002/annotation — small fast
+  // JSON calls, exactly what a reasoning model with a token bucket is wrong
+  // for). Atria stays live for the interview routes only.
   {
     feature: "repo_annotate",
     provider: "google",
@@ -464,11 +467,19 @@ const ROUTES: Array<{
   },
   {
     feature: "repo_annotate",
+    provider: "oxionai",
+    model: "gemma-2-2b",
+    endpoint: "https://www.oxionai.com/v1/chat/completions",
+    costPer1kUsd: 0.0002, // blended in/out per docs pricing
+    isActive: true,
+  },
+  {
+    feature: "repo_annotate",
     provider: "atriadawn",
     model: "Atria-Dawn",
     endpoint: "https://api.atria-asi.ai/v1/chat/completions",
     costPer1kUsd: 0,
-    isActive: true,
+    isActive: false, // reasoning model + slow-refill quota = wrong tool for 40 small nightly calls
   },
 ];
 
