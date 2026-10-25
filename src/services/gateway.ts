@@ -73,6 +73,16 @@ async function resolveRoute(feature: string): Promise<ProviderRoute> {
   return route;
 }
 
+// S2 (D84): does this user hold a BYO key for the feature's active route?
+// Decides flat per-session bar charging without spending a gateway call.
+export async function hasByoForFeature(
+  userId: string,
+  feature: string
+): Promise<boolean> {
+  const route = await resolveRoute(feature);
+  return Boolean(await getDecryptedCredential(userId, route.provider));
+}
+
 async function checkFlag(feature: string): Promise<void> {
   const flag = await db.featureFlag.findUnique({ where: { key: feature } });
   if (flag && !flag.enabled)

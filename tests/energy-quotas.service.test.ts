@@ -58,7 +58,7 @@ describe("earned replenishment (T14: D36)", () => {
     await appendEvent({
       userId: other.id,
       source: "web",
-      type: "interview_passed",
+      type: "interview_completed",
     });
     await db.energyAccount.create({
       data: { userId: other.id, balance: 2.5 },

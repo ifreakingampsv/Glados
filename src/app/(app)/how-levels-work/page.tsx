@@ -118,6 +118,17 @@ export default async function HowLevelsWorkPage() {
               verify via a 6-question check.
             </p>
           </li>
+          <li className="item-row stack">
+            <div>
+              <strong>Mock interviews</strong>
+            </div>
+            <p className="muted">
+              A graded interview writes the strongest evidence we ship: the
+              platform watched you defend your claims live. Deleting a session
+              removes its transcript AND stops its evidence from counting —
+              levels from that interview fall, visibly and honestly.
+            </p>
+          </li>
         </ul>
       </section>
 

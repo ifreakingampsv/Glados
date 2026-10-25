@@ -30,6 +30,13 @@ function stubFetch(overrides: Partial<Response> = {}) {
 beforeAll(async () => {
   await seedConfig();
   process.env.PLATFORM_TESTPROVIDER_API_KEY = "sk-platform-test";
+  // Hermetic routing: deactivate any seeded smoke routes so the testprovider
+  // row below is the ONLY active route for this feature (findFirst is
+  // otherwise order-dependent across parallel test files).
+  await db.providerRoute.updateMany({
+    where: { feature: "smoke" },
+    data: { isActive: false },
+  });
   await db.providerRoute.create({
     data: {
       feature: "smoke",

@@ -102,7 +102,7 @@ describe("Diff-and-stage re-upload service (T09: 4 diff outcomes, per-source sta
     await writeBackParsedResumeToProfile(owner.id, initialResume, "resume");
     await writeBackParsedResumeToProfile(owner.id, linkedinExport, "linkedin");
 
-    // Boost TypeScript evidenced level to >= 2 via interview_passed events
+    // Boost TypeScript evidenced level to >= 2 via interview_completed events
     const ts = await db.skill.findUniqueOrThrow({
       where: { name: "typescript" },
     });
@@ -110,7 +110,7 @@ describe("Diff-and-stage re-upload service (T09: 4 diff outcomes, per-source sta
       await appendEvent({
         userId: owner.id,
         source: "web",
-        type: "interview_passed",
+        type: "interview_completed",
         skills: [ts.id],
       });
     }

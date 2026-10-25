@@ -62,7 +62,7 @@ describe("worker service & pg-boss queue infrastructure (seam: service + real pg
     const ninetyDaysAgo = new Date(Date.now() - 90 * 86_400_000);
     await appendEvent({
       userId,
-      type: "interview_passed",
+      type: "interview_completed",
       source: "web",
       skills: [tsSkillId],
       occurredAt: ninetyDaysAgo,

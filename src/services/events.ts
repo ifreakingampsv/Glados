@@ -16,7 +16,7 @@ export const EVENT_TYPES = [
   "skill_tagged",
   "project_added",
   "manual_evidence",
-  "interview_passed", // reserved for S2
+  "interview_completed", // S2: one event per probed skill, verdict-scaled (D81/D88a)
   "quiz_completed", // S1.5 calibration quizzes (signed deltas allowed)
   "system_adjustment",
   "repo_imported",

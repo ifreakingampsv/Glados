@@ -1,7 +1,31 @@
 import type PgBoss from "pg-boss";
 import type { Prisma } from "@prisma/client";
 import { ensureQueue, getBoss, prismaTxToBossDb } from "@/lib/boss";
-import { runDecaySweep } from "@/services/levels";
+import { db } from "@/lib/db";
+import { runDecaySweep, getConfig } from "@/services/levels";
+import {
+  ABANDON_SWEEP_CRON,
+  ABANDON_SWEEP_QUEUE,
+  sweepAbandonedInterviews,
+} from "@/services/interview";
+import {
+  GRADING_QUEUE,
+  gradeInterviewSession,
+} from "@/services/interview-grader";
+import { runGoldenSet } from "@/services/eval-runner";
+import {
+  BRIEFING_CRON,
+  BRIEFING_QUEUE,
+  runWeeklyBriefing,
+} from "@/services/briefing";
+import {
+  TIERING_QUEUE,
+  interviewStorageReadout,
+  tierInterviewTranscripts,
+} from "@/services/interview-tiering";
+
+export const EVAL_DRIFT_QUEUE = "interview_eval_drift";
+export const EVAL_DRIFT_CRON = "0 5 * * 1"; // Mondays 05:00 UTC — paid run, weekly (D88g)
 
 export const DECAY_QUEUE = "decay_sweep";
 export const DECAY_CRON = "0 3 * * *";
@@ -26,6 +50,76 @@ registerQueueProcessor(DECAY_QUEUE, async () => {
   return { recomputed };
 });
 
+// S2: daily auto-abandon sweep for stale active interview sessions (D80/D88f)
+registerQueueProcessor(ABANDON_SWEEP_QUEUE, async () => {
+  const abandoned = await sweepAbandonedInterviews();
+  return { abandoned };
+});
+
+// S2: offline interview grading (D3/D81). MCP-origin submissions enforce the
+// per-user daily grading cap AT RUN TIME (D88e): over-cap jobs re-enqueue
+// themselves for the next UTC day — pending transcripts are never lost.
+registerQueueProcessor(
+  GRADING_QUEUE,
+  async (data: { sessionId?: string; origin?: string }) => {
+    if (!data?.sessionId) return { graded: false };
+    if (data.origin === "mcp") {
+      const session = await db.interviewSession.findUnique({
+        where: { id: data.sessionId },
+        select: { userId: true },
+      });
+      if (session) {
+        const cap = await getConfig<number>("interview.mcpGradeDailyCap", 3);
+        const today = new Date().toISOString().slice(0, 10);
+        const bucketKey = `mcp_grade:${session.userId}`;
+        const counter = await db.rateLimitCounter.findUnique({
+          where: { bucketKey_date: { bucketKey, date: today } },
+        });
+        if ((counter?.count ?? 0) >= cap) {
+          const nextUtcMidnight = new Date();
+          nextUtcMidnight.setUTCHours(24, 0, 5, 0);
+          await enqueueJob(GRADING_QUEUE, data, {
+            startAfter: nextUtcMidnight,
+          });
+          return { deferred: true };
+        }
+        await db.rateLimitCounter.upsert({
+          where: { bucketKey_date: { bucketKey, date: today } },
+          update: { count: { increment: 1 } },
+          create: { bucketKey, date: today, count: 1 },
+        });
+      }
+    }
+    const res = await gradeInterviewSession(data.sessionId);
+    return { graded: Boolean(res?.graded) };
+  }
+);
+
+// S2: weekly golden-set drift run (D88g) — catches silent provider model
+// swaps CI cannot see.
+registerQueueProcessor(EVAL_DRIFT_QUEUE, async () => {
+  const summary = await runGoldenSet();
+  const drifted = summary.results.filter((r) => r.drift).length;
+  return { runId: summary.runId, drifted };
+});
+
+// S2: Monday briefing emails (D85) — skip rules live inside the service.
+registerQueueProcessor(BRIEFING_QUEUE, async () => {
+  const { sent, skipped } = await runWeeklyBriefing();
+  return { sent, skipped };
+});
+
+// S2: transcript R2 tiering (D82) — runs when the storage readout crosses
+// the configured threshold; admin can force it from the console.
+registerQueueProcessor(TIERING_QUEUE, async (data: { force?: boolean }) => {
+  const readout = await interviewStorageReadout();
+  if (!data?.force && !readout.overThreshold) {
+    return { tiered: 0 };
+  }
+  const result = await tierInterviewTranscripts({ force: data?.force });
+  return { tiered: result.tiered };
+});
+
 export async function setupWorkerQueues(): Promise<void> {
   const boss = await getBoss();
   for (const queueName of registry.keys()) {
@@ -34,6 +128,24 @@ export async function setupWorkerQueues(): Promise<void> {
   await boss.schedule(
     DECAY_QUEUE,
     DECAY_CRON,
+    { scheduled: true },
+    { tz: "UTC" }
+  );
+  await boss.schedule(
+    ABANDON_SWEEP_QUEUE,
+    ABANDON_SWEEP_CRON,
+    { scheduled: true },
+    { tz: "UTC" }
+  );
+  await boss.schedule(
+    EVAL_DRIFT_QUEUE,
+    EVAL_DRIFT_CRON,
+    { scheduled: true },
+    { tz: "UTC" }
+  );
+  await boss.schedule(
+    BRIEFING_QUEUE,
+    BRIEFING_CRON,
     { scheduled: true },
     { tz: "UTC" }
   );

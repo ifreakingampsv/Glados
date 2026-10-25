@@ -58,7 +58,7 @@ describe("recompute (T09: single-writer cache)", () => {
     await appendEvent({
       userId: user.id,
       source: "web",
-      type: "interview_passed",
+      type: "interview_completed",
       skills: [kotlin.id],
     });
     cached = await db.userSkill.findUnique({
@@ -101,7 +101,7 @@ describe("recompute (T09: single-writer cache)", () => {
     await appendEvent({
       userId: user.id,
       source: "web",
-      type: "interview_passed",
+      type: "interview_completed",
       skills: [merged.id],
     });
     const cached = await db.userSkill.findUnique({
@@ -119,7 +119,7 @@ describe("nightly decay sweep (T10)", () => {
     await appendEvent({
       userId: user.id,
       source: "web",
-      type: "interview_passed",
+      type: "interview_completed",
       skills: [go.id],
     });
 

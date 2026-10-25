@@ -57,7 +57,7 @@ describe("Gap map modes + fit score service (T11: deterministic fit formula, res
       await appendEvent({
         userId: strongUser.id,
         source: "web",
-        type: "interview_passed",
+        type: "interview_completed",
         skills: [tsId, reactId, pgId],
       });
     }

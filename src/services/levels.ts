@@ -15,7 +15,7 @@ export const DEFAULT_POINTS: Record<string, number> = {
   skill_tagged: 0,
   project_added: 0,
   manual_evidence: 3,
-  interview_passed: 10,
+  interview_completed: 10,
   quiz_completed: 2,
   system_adjustment: 0,
   repo_imported: 5,
@@ -54,7 +54,7 @@ export function classifyEventSourceBucket(
       return "certificate";
     case "quiz_completed":
       return "quiz";
-    case "interview_passed":
+    case "interview_completed":
       return "interview";
     default:
       return null;
@@ -261,7 +261,13 @@ export async function computeUserSkillState(
   const [events, dbPointsTypes, dbSourceWeights, dbBands] = await Promise.all([
     db.eventLog.findMany({
       where: { userId, skills: { hasSome: referencedIds } },
-      select: { type: true, source: true, points: true, occurredAt: true },
+      select: {
+        type: true,
+        source: true,
+        points: true,
+        occurredAt: true,
+        payload: true,
+      },
     }),
     override?.pointsTypes
       ? Promise.resolve(override.pointsTypes)
@@ -274,11 +280,30 @@ export async function computeUserSkillState(
       : getConfig("levels.bands", DEFAULT_BANDS),
   ]);
 
+  // D82 tombstone: interview evidence from deleted sessions stops counting —
+  // the log stays append-only, the recompute consults the tombstones.
+  let countingEvents = events;
+  if (events.some((ev) => ev.type === "interview_completed")) {
+    const deletedSessions = await db.interviewSession.findMany({
+      where: { userId, status: "deleted" },
+      select: { id: true },
+    });
+    if (deletedSessions.length > 0) {
+      const dead = new Set(deletedSessions.map((s) => s.id));
+      countingEvents = events.filter((ev) => {
+        if (ev.type !== "interview_completed") return true;
+        const sessionId = (ev.payload as { sessionId?: string } | null)
+          ?.sessionId;
+        return !(sessionId && dead.has(sessionId));
+      });
+    }
+  }
+
   const pointsTypes = { ...DEFAULT_POINTS, ...dbPointsTypes };
   const sourceWeights = { ...DEFAULT_SOURCE_WEIGHTS, ...dbSourceWeights };
   const bands = dbBands.length > 0 ? dbBands : DEFAULT_BANDS;
 
-  const adjustedEvents = events.map((ev) => ({
+  const adjustedEvents = countingEvents.map((ev) => ({
     type: ev.type,
     points: effectiveEventPointsUnderConfig(ev, pointsTypes, sourceWeights),
     occurredAt: ev.occurredAt,
@@ -291,7 +316,7 @@ export async function computeUserSkillState(
     adjustedEvents,
     now
   );
-  const lastEvidencedAt = events.reduce<Date | null>(
+  const lastEvidencedAt = countingEvents.reduce<Date | null>(
     (latest, event) =>
       !latest || event.occurredAt > latest ? event.occurredAt : latest,
     null

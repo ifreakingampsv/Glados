@@ -64,9 +64,9 @@ difference.
 A deterministic multiple-choice check that settles a skill's band and writes
 signed-delta evidence. _Avoid_: test, assessment.
 
-**Bank**:
+**Quiz bank**:
 The cached question set for one skill + band + version; generated lazily, shared
-by all users.
+by all users. _Avoid_: "bank" alone — say quiz bank or interview bank.
 
 **Staircase**:
 The round-based quiz session that steps between bands and settles at one.
@@ -127,3 +127,58 @@ A block whose text the user froze; never silently rewritten.
 
 **Fit budget**:
 The roughly one-page content limit the resume builder enforces ("fit or flag").
+
+## Interviews (S2)
+
+**Interview session**:
+One mock interview run — startup persona, fixed question count, one scope.
+
+**Scope**:
+What the interviewer was "holding" when the session started: project (one repo),
+portfolio (up to three), or application (resume + optional JD).
+_Avoid_: mode (that's quick/deep, the session length).
+
+**Interview bank**:
+The ranked question list built once per user + scope + spine content version,
+cached and shared by both surfaces.
+_Avoid_: quiz bank (deterministic MCQ set, shared across users).
+
+**Turn**:
+One question-answer exchange; the unit of transcript storage and telemetry.
+
+**Push**:
+A follow-up that names a specific vagueness; capped per turn.
+
+**Verdict**:
+The per-question 🟢 / 🟡 / 🔴 judgment that scales evidence points.
+
+**Grader**:
+The platform-side judgment call after a session ends; the only writer of
+interview evidence. Never runs client-side.
+
+**Evidence basis**:
+Whether a report was graded against decision records (records) or transcript
+alone (intrinsic); always labeled on the report.
+
+**Golden transcript**:
+A fixed synthetic interview with sworn scores, used to regression-gate the
+grader. _Avoid_: test transcript, sample.
+
+**Anchor**:
+The human-confirmed rank order + bands a golden transcript may not drift from.
+
+**Decision record**:
+An ADR-lite per-project note — choice, alternatives, why; claim-tier evidence,
+AI-drafted, user-confirmed.
+
+**Readiness card**:
+The shareable summary card of a report (band + dimensions, never transcript
+content).
+
+**Pending grade**:
+An accepted MCP transcript waiting for the daily grading cap to reset; claim-grade
+until graded.
+
+**Surface**:
+Which front door a session used — the website or the user's own harness via MCP.
+_Avoid_: "source" (that's the event-log trust channel).

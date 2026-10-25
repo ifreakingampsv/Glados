@@ -238,11 +238,12 @@ model RateLimitCounter {
 
 // D28/D36: energy denominated in bars (1 bar = worst-case $0.10).
 model EnergyAccount {
-  id             String    @id @default(cuid())
-  userId         String    @unique
-  balance        Float     @default(0)
-  lastGrantDate  String? // YYYY-MM-DD (UTC) — lazy daily grant
-  lastEarnedAt   DateTime? // weekly earned replenishment (T14)
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  balance           Float     @default(0)
+  lastGrantDate     String? // YYYY-MM-DD (UTC) — lazy daily grant
+  lastEarnedAt      DateTime? // weekly earned replenishment (T14)
+  welcomeBarGrantedAt DateTime? // D84: signup bonus bar, granted exactly once
 }
 
 model FeatureFlag {
@@ -435,4 +436,84 @@ model Certificate {
   updatedAt  DateTime  @updatedAt
 
   @@index([userId])
+}
+
+// S2: mock interview sessions (D79/D80/D82). Columns = query surface (status,
+// mode, scope); grounding refs + spine content version snapshot + interviewer
+// config live in payload (event-log project_id-reference pattern, D25/D82).
+model InterviewSession {
+  id        String           @id @default(cuid())
+  userId    String
+  scope     String // project | portfolio | application (v1: project)
+  mode      String // quick | deep
+  status    String           @default("active") // active | completed | abandoned | graded
+  origin    String           @default("web") // surface: web | mcp (D88b)
+  payload   Json
+  startedAt DateTime         @default(now())
+  completedAt DateTime?
+  abandonedAt DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  turns     InterviewTurn[]
+  reports   InterviewReport[]
+
+  @@index([userId, status])
+}
+
+// S2 (D81/D82): one report per graded session. Dimension scores + evidence
+// basis are columns (briefing aggregates GROUP BY them); per-question verdicts,
+// groundedness findings, coaching and model/prompt versions live in payload.
+// Nullable dimensions = tombstone strip (D82).
+model InterviewReport {
+  id             String           @id @default(cuid())
+  sessionId      String           @unique
+  session        InterviewSession @relation(fields: [sessionId], references: [id])
+  techDepth      Int?
+  problemSolving Int?
+  tradeoffs      Int?
+  communication  Int?
+  composure      Int?
+  evidenceBasis  String           @default("intrinsic") // records | intrinsic (D79)
+  readinessBand  String? // Developing | Ready | Strong — deterministic
+  payload        Json
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([sessionId])
+}
+
+// S2: one row per turn; telemetry columns are PLAIN columns by design (D82
+// deliberate D25 deviation — quiz-precedent justification: aggregate telemetry).
+model InterviewTurn {
+  id           String           @id @default(cuid())
+  sessionId    String
+  session      InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  idx          Int
+  questionText String
+  answerText   String?
+  pushesUsed   Int              @default(0)
+  durationMs   Int?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([sessionId, idx])
+}
+
+// S2 (D79): ADR-lite per-project decision records — CLAIM-tier (never
+// evidence points), AI-drafted from interview debriefs (user confirms) or
+// written manually; plugin mining arrives with the MCP surface.
+model DecisionRecord {
+  id           String    @id @default(cuid())
+  userId       String
+  projectId    String
+  choice       String
+  alternatives String[]  @default([])
+  rationale    String
+  status       String    @default("draft") // draft | confirmed
+  source       String    @default("manual") // manual | interview_debrief | plugin
+  sessionId    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId, projectId])
 }

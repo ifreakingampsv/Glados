@@ -854,6 +854,462 @@ The draft was parked and the grill then ran in THIS chat (2026-10-11).
   specs/s1.5-calibration.md (2026-10-11). NEXT: /to-tickets (learner quizzes the
   breakdown before publishing) → implementation chats (VibeWise paused).
 
+## S2 design chat (opened 2026-10-25 — Interview AI, text-only, startup mode)
+
+Kickoff framing (user): interviewer grounded in the user's OWN project decision
+records from the spine; rubric scoring → reports → evidence written back to the
+spine; eval harness + golden transcripts = definition of done; weekly briefing
+ships here ([D50]); MCP server alongside ([D29]). Two versions: TEXT deploys now
+(~$0.02–0.05/interview per docs/prior-art/interview-ai.md); a full voice stack is
+built in parallel and BENCHED (voice = $1–3/interview → premium/energy-bar per
+D28/D29, or user-side MCP). Prior art to mine, not clone: interview-my-project
+(MIT — 5-stage flow, ranked question bank, follow-up-on-hand-waving, scorecard),
+interviewing.io (free-practice attractor, report dimensions, repeated-mocks-
+are-signal), Yoodli (voice-only rubric). Challengeable priors in play: D3
+(interactive live / offline grading queued), D4 (bank caching — assumed shared
+role+level banks, but grounded banks are per-user content), D28 (1 bar =
+1 interview, $0.10 ceiling vs $0.02–0.05 actuals), D46(7) (interviews re-grade
+claims as backstop), D78f (routing rules).
+
+Open questions — argue one by one, learner reasoning first:
+
+- OQ15. Grounding corpus — what does the interviewer actually READ? Spine today:
+  projects (title/description/links/skills[]), event payloads (imports, quiz
+  bands, work experience), resume blocks — no "why" anywhere (no decision
+  records). Where does ground truth for sharp questions AND honest grading come
+  from: new ADR-lite per-project decision records, existing spine signals only,
+  or imported agent session logs (interview-my-project's source)? Inverse feed
+  (D46(7) claim re-grading) rides on the same answer.
+- OQ16. Session mechanics + startup-mode definition — question-bank generation
+  timing and cache key (D4 vs per-user grounding), turn loop + latency budget,
+  follow-up policy (push on hand-waving), session lengths/modes/role variants,
+  what "startup mode" concretely means vs future big-tech mode.
+- OQ17. Rubric + evidence write-back — scoring dimensions + anchored scale,
+  per-question verdicts; how a graded session maps to event_log evidence
+  (event types, signed points, trust weight, corroboration-cap interplay D78);
+  stance on text-interview cheatability (ChatGPT-in-another-tab) — timing
+  telemetry vs weight caps.
+- OQ18. Data model + reports — interview_sessions/turns/reports tables vs
+  event payloads (D25 column-vs-payload rule), transcript retention (D19 saves
+  raw), report shape (verdicts, evidence citations, Say/Avoid/Fix coaching),
+  shareable readiness card (D11 e-portfolio staging?).
+- OQ19. Eval harness — golden transcript set (weak/medium/strong + edge cases:
+  hand-waving, hallucinated project, short answers): authoring, who anchors the
+  human scores, promptfoo CI wiring (what triggers it, what it gates), plus
+  interviewer-side groundedness assertions; exact definition-of-done wording.
+- OQ20. Cost + quota mapping — energy bar per interview (D28) vs $0.02–0.05
+  actuals; BYO-vs-platform routing for bank-gen / interviewer turns / grader
+  (D34/D78f); MCP-path platform grading quota; free-practice positioning
+  (interviewing.io lesson) vs D7 waitlist gate.
+- OQ21. Weekly briefing (D50) — channel (email/Resend vs in-app), deterministic
+  vs AI-written, inputs (repeated-mocks-are-signal), cost treatment.
+- OQ22. MCP server surface (D29/D35) — tool list, API-token auth, user-side
+  generation + platform-side grading flow for plugin-run interviews.
+- OQ23. Benched voice stack — what "built and benched" concretely delivers
+  (code behind flag? architecture note + cost bench?); where cheap STT voice
+  input (S2 row's optional follow, D13) lands.
+
+Status: OQ15 RESOLVED 2026-10-25 → [D79] (asymmetric grounding). OQ16 RESOLVED
+2026-10-25 → [D80] (session mechanics + scopes). OQ17 RESOLVED 2026-10-25 →
+[D81] (rubric + evidence write-back). OQ18 RESOLVED 2026-10-25 → [D82]
+(data model + reports). OQ19 RESOLVED 2026-10-25 → [D83] (eval harness).
+OQ20 RESOLVED 2026-10-25 → [D84] (cost + quota mapping). OQ21 RESOLVED
+2026-10-25 → [D85] (weekly briefing; closes D50's owner slot). OQ22 RESOLVED
+2026-10-25 → [D86] (MCP server surface). OQ23 RESOLVED 2026-10-25 → [D87]
+(benched voice stack) — OQ LIST CLOSED.
+
+- **[D79] Asymmetric grounding (resolves OQ15; learner confirmed 2026-10-25):**
+  two grounding contexts, deliberately unequal. INTERVIEWER asks from the
+  VISIBLE SURFACE only — project description, skills[], work experiences,
+  resume blocks, repo public surface (README/deps/activity per the D67 import;
+  zero new ingestion) — emulating a prepared startup interviewer who skimmed
+  the GitHub and resume: it can probe claims and choices, never private "why"
+  (learner's realism principle). GRADER sees everything: transcript + visible
+  surface + optional per-project DECISION RECORDS (ADR-lite: choice +
+  alternatives + why), citing them in verdicts (interview-my-project's Coach
+  pattern re-homed on the spine). Records are OPTIONAL — no authoring gate:
+  AI-drafted from interview debriefs ("you defended 3 choices today — save
+  them as records?"), user-confirmed (D30 construction/selection split),
+  manual authoring allowed, plugin session-log mining later (OQ22). The
+  interview is the ingestion mechanism: session 1 = realistic probing; later
+  sessions get sharper because session 1 built the corpus. GRADER FALLBACK
+  LADDER (learner requirement): records present → evidence-cited grading;
+  records absent OR unreliable (stale — predating the project's latest import/
+  major event, recency-marked, corroboration-only) → INTRINSIC grading from
+  transcript alone (internal consistency, specificity, tradeoff articulation,
+  follow-up resistance), and the report LABELS its evidence basis ("graded on
+  reasoning quality — add decision records to sharpen future grading"; D62-style
+  honest teaching). Records are structured CLAIMS in the D46 ladder — richer
+  grading, never more trust. Downstream: golden transcripts must cover BOTH
+  grading modes (OQ19); past interview REPORTS are platform-generated spine
+  artifacts and MAY ground later sessions' interviewer (flag-gated v1 nicety —
+  a coach re-reads their own notes). This is the D46(7) claim-regrade backstop
+  made concrete.
+
+- **[D80] Session mechanics + scopes (resolves OQ16; learner confirmed 2026-10-25):**
+  ONE ENGINE, THREE SCOPES, each emulating what a real interviewer is holding:
+  PROJECT (default — single-project deep dive, sharpest D79 grounding);
+  PORTFOLIO (≤3 selected projects, config row — cross-project opener, rotating
+  focus; the designated trim candidate under build pressure); APPLICATION
+  (resume + optional JD — probes resume claims, so the report doubles as a
+  resume-claim audit = the strongest D46(7) backstop; a selected JD skews the
+  bank via S1-extracted canonical skill ids — no new machinery). Startup
+  persona across all scopes, adopting interview-my-project's line verbatim:
+  "assumes it's one more vibe-coded project until you prove otherwise."
+  Big-tech mode later = a different bank generator on the same engine;
+  role/focus variants = flag-gated bank-prompt flips, not new machinery.
+  HYBRID QUESTION PIPELINE: a ranked bank (architecture choices, X-over-Y
+  tradeoffs, failure modes, scale ceilings — interview-my-project's four
+  categories) is built ONCE at session start — one chunky gateway call over
+  the scope's visible-surface pack, CACHED (key: user + scope hash + spine
+  content version — resume edits auto-invalidate application-mode banks; D4
+  discipline); each turn is a small live call (cheap tier per prior-art) that
+  picks the next bank question, adapts wording, and judges follow-ups.
+  Deterministic scaffold + live delivery — the D30 family (AI constructs,
+  never selects), named as a recurring pattern for S3b learning paths and S4
+  study plans. FOLLOW-UPS: capped at 2 pushes/question (config row); a push
+  must name the vagueness ("easier than what?", never "elaborate");
+  pushes-used is recorded as GRADER INPUT, never spine evidence (D77 line).
+  SESSION END: fixed counts, quick 5 / deep 12 (adopted); no clock, no
+  signal-based ending — predictable length keeps D28 math honest and the OQ19
+  eval deterministic. Abandoned sessions (<half answered) write nothing (D76
+  precedent); the edge is owned by OQ17. UX: one setup screen — scope →
+  ground (project checkboxes / resume+JD picker) → quick/deep → start.
+  STANDING PATTERN (bounded adaptivity): every adaptive behavior is capped by
+  a config row so cost and duration stay predictable — D28 thinking
+  generalized. Eval note into OQ19: golden transcripts cover project +
+  application scopes at minimum.
+
+- **[D81] Rubric + evidence write-back (resolves OQ17; learner confirmed
+  2026-10-25):** RUBRIC — five anchored dimensions, each scored 1–4 (anchored
+  scale, no decimals — the D42 no-fake-precision principle): technical depth
+  (per probed skill — the evidence-bearing dimension), problem solving,
+  tradeoff articulation (the startup-mode core), communication, composure
+  (fed by D80's pushes-used data). Per-question 🟢🟡🔴 verdicts. GROUNDEDNESS
+  is an UNSCORED audit section, not a dimension: findings where answers
+  contradicted decision records or the visible surface (dimensions score the
+  answer; groundedness audits the claim). GRADING = one queued call at session
+  end (D3: interactive turns live, grading offline). EVIDENCE WRITE-BACK —
+  event type `interview_completed`, ONE EVENT PER PROBED SKILL (grader emits
+  per-skill verdicts; each event carries skills[] + points + payload →
+  session ref; per-skill events keep recompute, D78 cap logic, and briefing
+  unchanged). Points scale by verdict: 🟢 full / 🟡 partial / 🔴 ZERO — bad
+  answers earn nothing, never deduct, in v1. Base weight = config row, set as
+  the STRONGEST SHIPPED evidence tier (above imported repos, below future S3b
+  platform-guided builds; rationale: the platform watched the user defend
+  claims live). Per D46(5)/D78a the interview is a PLATFORM source: probed-
+  and-passed skills UNCAP the L3 corroboration ceiling — this is D55's
+  promised "validation path: interviews (S2)" existing. CHEATABILITY —
+  learner's stance, confirmed: v1 accepts the text-cheat hole (ChatGPT in
+  another tab) because there is no external incentive yet ("lying to
+  themselves"; D11 e-portfolio + D36 energy are mild early incentives,
+  self-harm only). KNOWN HOLE flagged: claim-only skill + one faked interview
+  = L4 with no artifact underneath; v1 mitigations are structural (D79
+  visible-surface probing + D80 follow-up drilling make pasted brilliance read
+  evasive), consciously accepted. RECRUITER-ERA OPTIONS MENU (pre-committed
+  response for D11 stage 2; nothing built now): (1) config re-tune —
+  recruiter-visible levels cap at L3 unless interview pairs with an ARTIFACT
+  source (repo/cert), not just a claim; (2) timing telemetry as cheat SIGNAL
+  (paste events, answer latency, time-to-first-keystroke — D77 pattern:
+  telemetry, never evidence; flags sessions for re-verification); (3) spot
+  re-verification ("interview-verified, DATE"; stale/high-claim sessions get a
+  short re-verify; leans on the D24 half-life); (4) bounded negative lane for
+  interviews copying D76's shape exactly (delta ≥ −(current interview-source
+  contribution); caught contradiction deducts interview credit only);
+  (5) channel attestation — platform-run sessions count full, plugin-run
+  (D29) sessions grade at a capped trust tier in recruiter surfaces;
+  (6) outcome calibration — interviewing.io's endgame: correlate report
+  scores with real-interview outcomes over time (later telemetry). DESIGN
+  PAYOFF recorded: weights/caps/what-corroborates are config rows over an
+  append-only log → the recruiter-era shift is re-tuning + one telemetry
+  pipeline, not re-engineering.
+
+- **[D82] Data model + reports + retention (resolves OQ18; learner confirmed
+  2026-10-25):** FOUR NEW TABLES. `interview_sessions` — columns: user_id,
+  scope, mode, status (active|completed|abandoned|graded), timestamps;
+  payload: grounding pack refs, SPINE CONTENT VERSION SNAPSHOT (D80 cache-key
+  input — reproducibility for eval/debug), interviewer config used. Grounding
+  refs stay payload (event-log project_id-reference pattern; promote to
+  columns only when a real query appears — D25 applied honestly).
+  `interview_turns` — one row per turn: session_id, idx, question_text,
+  answer_text, pushes_used, duration_ms as PLAIN COLUMNS (deliberate D25
+  deviation, quiz-precedent justification: telemetry aggregates need GROUP BY
+  — D77 — and turns are the future home of recruiter-era cheat-signal
+  telemetry; duration_ms recorded day one as TELEMETRY, never evidence —
+  one migration saved). `interview_reports` — one per session: the FIVE D81
+  dimension scores as REAL COLUMNS (fixed vocabulary; the briefing's
+  repeated-mocks story needs AVG over sessions), evidence_basis as a COLUMN
+  (records|intrinsic — eval/admin filter on it), everything per-question
+  (verdicts, groundedness findings, Say/Avoid/Fix coaching, model+prompt
+  versions) in payload. `decision_records` — D79 machinery: project_id,
+  user_id, choice, alternatives, rationale, status (draft|confirmed), source
+  (interview_debrief|manual|plugin later), session_id ref, timestamps.
+  DELETION = TOMBSTONE, not cascade: user delete marks the session deleted,
+  strips transcript + report content (privacy), registers a tombstone the
+  recompute consults — the session's events stop counting, LEVELS FALL
+  VISIBLY. Event ROWS stay (append-only intact; D33's
+  resolve-differently-at-read-time move), payload gains deleted_at, the log
+  still says "an interview happened on this date." Evidence-standing-after-
+  artifact-burn rejected as an audit trail that lies. How-levels-work (D62)
+  gains one line explaining the visible fall. RETENTION — Postgres at ramp
+  stages 1–2 (~10–40KB/session: noise at 50 users, ~2GB at 5k users which
+  would pressure Neon free); interview storage watched on the D43 dashboard
+  (D61 pattern); tier TEXT BLOBS to R2 on dashboard trigger (structured
+  columns + reports stay joinable, transcripts move); tombstoned content
+  stripped immediately, never archived; D19 fine-tuning corpus served by the
+  R2 dump path when ever needed. SHARE CARD — YES in v1, flag-gated:
+  deterministic render from report data (no AI at render time, D30), shares
+  readiness BAND + dimensions ONLY (never transcript content), shows the
+  USER's name with NO product wordmark (URL hostname leaks the codename =
+  weak exposure, consciously accepted; OQ7 rename checklist still fires
+  before anything branded-public); first sliver of the D11 e-portfolio
+  stage. Tradeoffs recorded: tombstone-fall will surprise someone (D62 line
+  covers it); dimension columns hard-code D81's vocabulary (rename =
+  migration — acceptable, rubric is anchored and versioned).
+
+- **[D83] Eval harness (resolves OQ19; learner confirmed 2026-10-25):** GOLDEN
+  SET = 10 synthetic transcripts, agent-authored in the LEARNER'S OWN STACK
+  (fictional candidates on a GLaDOS-shaped project — dogfood domain). The set
+  tests GRADER BEHAVIOR (hand-wave catching, vague-vs-specific separation,
+  citation resolution, push-on-vague), which is domain-general — no
+  per-subject coverage needed (dissolves the knowledge-bottleneck concern).
+  Never real user data; never fed into grader prompts as examples
+  (contamination rule). Coverage: project-scope weak/medium/strong;
+  application-scope medium-claim-collapse + strong; edge cases (hand-waver,
+  hallucinated project, ultra-short answers); one records-vs-intrinsic PAIR
+  pinning the D79 fallback ladder. ANCHORING = MULTI-MODEL CONSENSUS: each
+  transcript graded independently by 3 models via the gateway; unanimous →
+  auto-anchor; splits → learner adjudicates ONLY the disagreements (each
+  model's reasoning shown) — one ~30–60 min sitting. HUMAN ANCHOR = RANK
+  ORDER + BANDS (weaker/equal/stronger; 🟢🟡🔴), never exact 1–4s (LLM judges
+  are measurably better at relative than absolute judgment); absolute
+  dimension scores still tolerance-checked in CI, seeded from consensus.
+  CI = promptfoo (TS-native), two suites: GRADER suite blocks merges on
+  out-of-tolerance deltas + ZERO hallucinated citations (every citation must
+  resolve to a real transcript turn / record id — programmatic, no LLM);
+  INTERVIEWER suite blocks on missing pushes for known-vague fixtures +
+  unresolvable grounding citations. Trigger = any change to grader/
+  interviewer prompts, rubric config, or interview routing-table rows;
+  intentional grader improvements update anchors in the SAME PR (promptfoo
+  diff = review artifact). DRIFT CRON: weekly golden re-run on the worker,
+  history graphed on the admin console — catches silent provider-side model
+  swaps that CI cannot see. CONSOLE (D47 pattern extended): grader-eval
+  panel — run set on demand, per-transcript diff vs anchors, drift history;
+  grader tuning = change → replay → diff → apply. PRIOR-ART CONTEXT
+  recorded: interview-my-project and the practice-side OSS ship NO eval at
+  all (that gap IS the differentiation); interviewing.io's outcome
+  calibration is volume-gated later (already D81 option 6); HireVue/
+  CodeSignal pay human raters for calibration (the labor this design
+  avoids). DEFINITION OF DONE (slice-level, exact wording): S2 closes when
+  (a) the 10-transcript set spans both scopes, both grading modes, and the
+  three edge behaviors with consensus + human anchors; (b) both promptfoo
+  suites block merges on out-of-tolerance deltas, missing pushes, or
+  unresolvable citations; (c) the admin console replays the set on demand
+  with visible diffs; (d) zero hallucinated citations across the set.
+  DUAL-SURFACE NOTE (learner confusion, resolved same day): the engine
+  (grounding, bank, rubric, tables, eval) is surface-agnostic; plugin/MCP-
+  origin transcripts (D29) flow through the SAME platform grader — the
+  harness protects both surfaces; grading is platform-side in every world
+  (D29: trusted judgments never enter the spine from client-side
+  generation).
+
+- **[D84] Cost + quota mapping (resolves OQ20; learner confirmed 2026-10-25):**
+  WEB DOOR — flat pricing: 1 bar = ANY interview (quick or deep). Rationale:
+  deep-12 true cost ≈ $0.05 vs the bar's $0.10 ceiling (both fit); mode
+  choice should be a time decision, not currency anxiety; bars-per-mode is a
+  config row if D43 ever shows deep abuse. WELCOME BAR added: signup grants
+  one bonus bar (first interview effectively free; config row). MCP DOOR —
+  grading is FREE + CAPPED + DEFERRABLE: ~3 graded transcripts/day (config
+  row); over-cap transcripts are still ACCEPTED AND STORED, graded when the
+  cap resets ("pending grade" is honest — D29 claim-grade-until-graded);
+  user's harness never hits a paywall, platform exposure bounded. Why not
+  uncapped: interviews write the STRONGEST evidence tier and uncap L3 (D81)
+  — free unlimited grading of self-generated transcripts would mint evidence.
+  BYO exemption deliberately does NOT apply to grading (platform spend +
+  platform trust, not user generation). FREE-PRACTICE POSITIONING — HOLD the
+  1-bar/1-day/bank-3 line: interviewing.io's free-unlimited is VC-subsidized
+  and not copyable; D36 already self-subsidizes practice (a completed
+  interview IS a platform-verified evidence event → +1 earned bar/week →
+  practice pays for itself at a sustainable cadence); scarcity keeps BYO/MCP
+  attractive (learner's own cost-offload goal); the funnel's free attractor
+  stays the S1 scanner/gap-map — interviews are the treatment, not the bait;
+  loosening = config rows if D43 shows habit damage. ROUTING MAP (D34/D78f
+  settled): interviewer turns + bank-gen = personal-output, BYO auto-win on
+  web, bar only when platform-keyed; THE GRADER IS PLATFORM-SIDE ALWAYS in
+  both doors (trusted judgment per D29/D83; grader model pinned to a
+  routing-table row is what makes the D83 drift cron meaningful). HONEST
+  FLAG: at 50-user ramp with hot adoption, the $5/mo platform budget strains
+  (~$0.60–1.50/mo per daily interviewer) — D43 dashboard + config tuning +
+  MCP offload are the standing answers; expect to touch the budget row at
+  the first ramp review.
+
+- **[D85] Weekly briefing (resolves OQ21; resolves D50 owner-slot; learner
+  confirmed 2026-10-25):** CHANNEL — both, strict division: EMAIL = the nudge
+  (Monday morning, ~3 headline numbers + one link; the only channel reaching
+  lapsed users), IN-APP "This Week" page = the home (rendered live from the
+  log, always available). Resend free tier = GLaDOS's FIRST real email
+  surface (D8 stack list item, not previously integrated — small honest
+  dependency add); unsubscribe from day one; delivery = weekly pg-boss
+  scheduled job (D65 pattern). SKIP RULES: no email on empty weeks (zero
+  evidence events = silence), EXCEPT the deliberate win-back case (the week
+  the energy bank starts decaying, the email says exactly that and nothing
+  else). CONTENT — deterministic numbers + ONE AI paragraph: every stat from
+  plain SQL over event_log + D82 report columns (free, instant, cannot
+  hallucinate); one gateway call per user/week (≤200 tokens, ~$0.001; 50
+  users ≈ $0.05/mo) writes the coach's note — WORDSMITHS, NEVER COMPUTES
+  (inputs are pre-computed facts; renders inside a template showing the
+  deterministic numbers above it, so a bad note is awkward, never wrong;
+  D30 family). INPUTS = FIVE BLOCKS max: evidence events this week (verdict
+  colors); points/level movements BOTH directions (honest, D62 — the
+  briefing admits falls); interview dimension trends from report columns
+  (the repeated-mocks story: "tradeoffs 2 → 2 → 3"); energy state + D36
+  hooks (bar earned? bank decaying?); one line of gap-map movement if
+  scanned. BRIEFING WRITES NOTHING to the spine — reading it is explicitly
+  NOT an evidence event (would self-farm the D36 bar). THE ONE ACTION —
+  rules pick, the note dresses: deterministic priority ladder constructs and
+  selects exactly ONE CTA (≈ resume unfinished interview > practice lowest
+  evidenced dimension among target-role skills > spend decaying bank >
+  verify a claimed skill with a quiz bank waiting); AI wordsmiths the chosen
+  action. Never two CTAs.
+
+- **[D86] MCP server surface (resolves OQ22; learner confirmed 2026-10-25):**
+  BANK SOURCE = SHIP-THE-BANK (Option A): `start_interview_session` returns
+  the same cached, ranked bank the website uses; the harness's own model
+  pays for the conversation turns (the 95% cost offload D84 designed for),
+  while bank/rubric/grader stay platform-side. Rationale: D83 eval coverage
+  (the golden set certifies the interview users actually experience; web and
+  harness interviews identical by construction), persona/tone control, and
+  moat placement. Escape hatch noted, not built: flag-gated `custom_bank`
+  proposal tool, platform-linted before use. DAY-ONE TOOL LIST (five, each a
+  thin wrapper over existing service functions — D21, one enforcement path,
+  no new logic): (1) `start_interview_session(scope, projects?/jd?)` —
+  creates the session row, returns session_id + cached bank + policy
+  (count, push cap); atomic, metered. (2) `submit_interview_transcript(
+session_id, turns[])` — the flow-back, ONE call at session end with full
+  turn log (text, pushes_used, duration_ms per turn → D82 columns); <half
+  answered = abandoned = writes nothing (same rule as web); submit-at-end
+  chosen over per-turn (simpler; a harness crash kills the session anyway).
+  (3) `get_interview_report(session_id)` — poll for the graded report;
+  over-cap submissions sit in `pending` (D84). (4) `get_spine_snapshot()` —
+  read-only coaching context (profile, projects+skills, claimed-vs-evidenced
+  levels, target role). (5) `save_decision_record(project_id, choice,
+alternatives, rationale, session_id?)` — D79's plugin-mining arriving now:
+  the agent watched the user defend choices live and is the natural drafter;
+  skill file instructs it to ASK first; tool writes user_confirmed records
+  only; everything lands claim-tier regardless (bounded worst case = junk
+  claim). DELIBERATELY ABSENT day one: quiz-pack delivery (D56 route stays
+  parked — scope) and — LOAD-BEARING — NO TOOL WRITES EVIDENCE EVENTS, ever:
+  evidence enters the spine only through platform grading (D29 trust
+  boundary stated as API surface). PACKAGING: MCP server lives in the same
+  monolith (thin transport over the same service layer the website calls —
+  nothing new to deploy, D1/D21); versioned SKILL FILE distribution
+  (interview-my-project pattern: one-command install + token paste) whose
+  onboarding TEACHES (what MCP is, what the token does, where evidence
+  goes — D29 onboarding-as-product-value); whole surface behind a feature
+  flag (D6).
+
+- **[D87] Benched voice stack (resolves OQ23; learner confirmed 2026-10-25):**
+  SHIP THE CHEAP HALF — STT INPUT, self-hosted faster-whisper (CPU) on the
+  existing Railway worker, flag-gated (default OFF until the hands-on
+  walkthrough); feeds the SAME answer_text column (engine untouched —
+  text-in/text-out by construction); stays inside the 1-bar economics
+  (self-host ≈ free; the API route at ~$0.18/session would alone exceed the
+  D28 $0.10 bar ceiling — documented as a pricing decision, NOT wired);
+  honest cost: a model binary in the container — D43 dashboard watches
+  worker strain as the revisit signal. BENCH THE EXPENSIVE HALF AS A LIVING
+  ARTIFACT — a benchmark script running the three candidate stacks (OpenAI
+  Realtime / Retell-Vapi / self-hosted Pipecat) end-to-end against a real
+  golden transcript, printing the $/session table; + a D16 architecture
+  note + a one-page decision memo of un-bench triggers; lives beside the
+  grader-eval panel, ON-DEMAND ONLY (each run bills real provider minutes —
+  cost printed on the button); rots slow, revisitable months later. REJECTED
+  for day one: a full benched bidirectional pipeline (would be the only
+  never-exercised code in the codebase — the D83 silent-drift shape with no
+  harness watching; drags premature TTS-cost decisions; the real
+  voice-ready deliverable is already banked by construction — voice stays
+  two adapters away forever). UN-BENCH LADDER (trigger-based, not dated):
+  RUNG 1 = voice via the user's own harness — an experimental paragraph in
+  the MCP skill file instructs multimodal harnesses (Antigravity/Gemini
+  live) to read questions aloud and accept speech: their audio, their
+  tokens, zero platform cost — D29's split applied to voice; ships
+  opportunistically with the S2 skill file, measured by usage. RUNG 2 =
+  platform voice as a premium surface; trigger = paying users exist AND a
+  demand signal (one-tap "I'd want this with voice" on the report page;
+  threshold = config row).
+
+**S2 OQ LIST CLOSED — OQ15–OQ23 all resolved into [D79]–[D87] (2026-10-25).**
+Slice design complete. GRILL COMPLETE same day → [D88]; next pipeline step:
+/to-spec.
+
+- **[D88] S2 grill outcomes (9/9 recommendations accepted by learner,
+  2026-10-25):** grounded in a code fact-sweep of the shipped S0–S1.5 spine.
+  (a) CODE CATCH — event-type rename: S0's reserved `interview_passed` is
+  false semantics under verdict-scaled partial credit; rename to
+  `interview_completed` (EVENT_TYPES, classifyEventSourceBucket,
+  DEFAULT_POINTS, seed) in S2's first ticket — zero-row rename, free only
+  before real events exist. (b) CODE CATCH — evidence-event source:
+  platform-graded interview events carry source=system (D35a discipline;
+  agent_plugin 0.5 weight never applies — D86 forbids un-graded transcripts
+  writing evidence); the SURFACE lives on interview_sessions + event payload
+  origin: web|mcp; recruiter-era channel attestation reads payload, never
+  source. (c) Verdict fractions: grader passes pointsOverride = round(base ×
+  fraction); config interview.verdictFractions {green:1, amber:0.5, red:0};
+  shipped ≥0 clamp suffices. (d) Bank routing: cache key hash(user, scope,
+  content version); web = BYO-eligible with D34 consent fallback; MCP =
+  read-or-generate platform-side; bank spend does NOT count against the D84
+  grading cap; both surfaces converge on one bank. (e) MCP cap mechanics:
+  DailyCounter mcp_grade:{userId} (config interview.mcpGradeDailyCap,
+  default 3); the grading job checks the counter at RUN time and reschedules
+  itself to the next UTC day via pg-boss delayed re-enqueue when over cap;
+  pending transcripts never lost. (f) Turn loop: plain request/response, no
+  streaming v1, ~5s target on routing row interview_turn (grader on
+  interview_grader); one auto-retry then pause-resume; active sessions
+  auto-abandon after 7 days (config row); banks regenerate on resume if the
+  content version changed. (g) D83 AMENDED (eval CI reality): deterministic
+  asserts (citation resolution, push-on-vague) run in CI/pre-push — free,
+  block commits; the paid LLM golden suite runs on demand (console button,
+  per-run cost shown) + weekly drift cron and gates RELEASES, not commits.
+  (h) D87 AMENDED (STT implementation reality): faster-whisper is Python —
+  NO Python sidecar in S2; STT input demoted to a spike ticket + flag
+  (JS-native transformers.js/ONNX first; the spike exits with the sidecar
+  cost written down if it fails; the feature stays parked at the rung-2
+  trigger). (i) Briefing mechanics: null-email users silently skipped (Clerk
+  webhook backfills over time); unsubscribe = preference row set by a
+  one-click Resend-hosted URL, checked by the briefing job; welcome bar +1
+  on first user.created webhook, idempotent (Float balance). Grill frontier
+  empty — design tree complete. CONTEXT.md gained the S2 vocabulary
+  (interview session, scope, interview bank, turn, push, verdict, grader,
+  evidence basis, golden transcript, anchor, decision record, readiness
+  card, pending grade, surface; quiz "Bank" renamed "Quiz bank" to break the
+  collision).
+
+- **[D89] S2 implementation notes (recorded at build close, 2026-10-25):**
+  accepted deviations and confirmations from the implementation run (all 12
+  tickets green, `npm run check` 45 files / 194 tests). (a) EVAL RUNNER IS
+  NATIVE, not promptfoo (D83 named the tool; D88g's CONTRACT is what ships):
+  the on-demand LLM suite, 3x-per-fixture consensus runs, auto-anchoring,
+  drift history, cost-before-run estimate, and release gating live in
+  eval-runner behind the admin panel; deterministic asserts run inside
+  `npm run check` via the golden-suite vitest file — promptfoo can wrap the
+  same fixtures later without product change. (b) CONSENSUS = 3 INDEPENDENT
+  RUNS on the single configured grader route; true 3-MODEL consensus returns
+  when routing rows diversify (the runner takes per-run overrides). (c)
+  RESEND WITHOUT SDK: briefing emails POST directly to the Resend API (same
+  contract, zero new dependencies). (d) ENERGY HARD EDGE: an interview start
+  with insufficient bars FAILS with an explicit error (welcome bar / earned
+  bar / BYO escape hatches in the message) rather than the shipped
+  floor-to-zero soft deduction — a session is a spend commitment, not an
+  incidental call. (e) MCP GRADING CAP uses the RateLimitCounter table
+  (bucketKey mcp_grade:{userId} per UTC day) — the DailyCounter row is
+  gateway-shared and cannot host a second semantic. (f) VOICE BENCH =
+  plan-printing script + console memo; live adapters deliberately unwired
+  (they bill real money and the un-bench trigger has not fired). (g) STT
+  exited PARKED per the spike memo (docs/prior-art/stt-spike-memo.md) — seam
+  - honest error shipped, no whisper dependency anywhere. (h) CONFIRMATION:
+    the shipped interview evidence bucket + recompute needed only the D82
+    tombstone filter (deleted-session events stop counting); no changes to the
+    single writer.
+
 ## Open questions for the VibeWise design chat (argue these first)
 
 1. Spine schema details: skills alias table design; evidence → level computation.

@@ -305,11 +305,11 @@ describe("S1.5 T01: Evidence core — negative lane, decayed quiz floor, and L3 
     expect(goUncapped.score).toBeCloseTo(260, 5);
     expect(goUncapped.level).toBe(5);
 
-    // 6. S2 interview_passed uncaps as well
+    // 6. S2 interview_completed uncaps as well
     await appendEvent({
       userId: user.id,
       source: "web",
-      type: "interview_passed",
+      type: "interview_completed",
       skills: [node.id],
       occurredAt: now,
       now,

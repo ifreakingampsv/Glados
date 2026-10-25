@@ -97,7 +97,7 @@ describe("event log (T08: append-only, clamped, trust-weighted)", () => {
       "work_experience_added",
       "work_experience_confirmed",
       "certificate_added",
-      "interview_passed",
+      "interview_completed",
       "system_adjustment",
       "resume_imported",
       "post_drafted",

@@ -1,4 +1,5 @@
 import { db, type User } from "@/lib/db";
+import { grantWelcomeBar } from "@/services/energy";
 
 export interface ClerkEmail {
   id: string;
@@ -42,7 +43,11 @@ export async function handleClerkEvent(
   event: ClerkEvent
 ): Promise<User | null> {
   switch (event.type) {
-    case "user.created":
+    case "user.created": {
+      const created = await ensureUser(event.data.id, primaryEmail(event.data));
+      await grantWelcomeBar(created.id); // D84: idempotent under retries
+      return created;
+    }
     case "user.updated":
       return ensureUser(event.data.id, primaryEmail(event.data));
     case "user.deleted":

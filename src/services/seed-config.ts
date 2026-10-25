@@ -217,6 +217,19 @@ export async function seedConfig() {
     { key: "certs.providers", value: DEFAULT_CERT_PROVIDERS },
     { key: "posts.minCommitsPerMilestone", value: 10 },
     { key: "posts.maxPerWeek", value: 2 },
+    // S2 interview tunables (D80, D81, D84, D88)
+    { key: "interview.quickQuestions", value: 5 },
+    { key: "interview.deepQuestions", value: 12 },
+    { key: "interview.pushCap", value: 2 },
+    { key: "interview.abandonDays", value: 7 },
+    { key: "interview.barsPerSession", value: 1 },
+    { key: "interview.welcomeBars", value: 1 },
+    { key: "interview.mcpGradeDailyCap", value: 3 },
+    { key: "interview.portfolioCap", value: 3 },
+    {
+      key: "interview.verdictFractions",
+      value: { green: 1, amber: 0.5, red: 0 },
+    },
   ];
 
   for (const row of rows) {
@@ -237,6 +250,9 @@ export async function seedConfig() {
       const currentObj = existing.value as Record<string, number>;
       const defaultsObj = row.value as Record<string, number>;
       const merged = { ...defaultsObj, ...currentObj };
+      // D88a zero-row rename: drop the dead S0-reserved key so the seeded
+      // dictionary matches the renamed vocabulary (interview_completed).
+      if (row.key === "points.types") delete merged.interview_passed;
       if (Object.keys(merged).length !== Object.keys(currentObj).length) {
         await db.config.update({
           where: { key: row.key },
@@ -346,6 +362,35 @@ const ROUTES: Array<{
     endpoint:
       "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     costPer1kUsd: 0.0015,
+    isActive: true,
+  },
+  // D88f: interview routing rows — cheap tier carries the live turns, the
+  // grader gets its own row so the drift cron can watch it (D83/D84).
+  {
+    feature: "interview_turn",
+    provider: "google",
+    model: "gemini-2.0-flash",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    costPer1kUsd: 0.0004,
+    isActive: true,
+  },
+  {
+    feature: "interview_grader",
+    provider: "google",
+    model: "gemini-2.0-flash",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    costPer1kUsd: 0.001,
+    isActive: true,
+  },
+  {
+    feature: "briefing_note",
+    provider: "google",
+    model: "gemini-2.0-flash",
+    endpoint:
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    costPer1kUsd: 0.0004,
     isActive: true,
   },
 ];

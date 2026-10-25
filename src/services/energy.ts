@@ -39,6 +39,23 @@ export async function ensureDailyGrant(userId: string): Promise<EnergyAccount> {
 
 const WEEK_MS = 7 * 86_400_000;
 
+// D84 welcome bar: +1 on signup, granted exactly once (marker column makes
+// webhook retries idempotent). Cap still binds.
+export async function grantWelcomeBar(userId: string): Promise<void> {
+  const bars = await getConfig<number>("interview.welcomeBars", 1);
+  if (bars <= 0) return;
+  const account = await getOrCreateEnergyAccount(userId);
+  if (account.welcomeBarGrantedAt) return;
+  const cap = await getConfig<number>("energy.bankCap", 3);
+  await db.energyAccount.update({
+    where: { userId },
+    data: {
+      balance: Math.min(cap, account.balance + bars),
+      welcomeBarGrantedAt: new Date(),
+    },
+  });
+}
+
 // D36: +1 bar/week earned by ≥1 platform-verified evidence event (points > 0)
 // in the trailing 7 days — idle clicks can't farm it; the bank cap still binds.
 async function maybeEarnWeeklyBar(

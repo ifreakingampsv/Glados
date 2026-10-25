@@ -26,6 +26,12 @@ import type { ScoringConfigOverride } from "@/services/levels";
 import { createInviteCode } from "@/services/waitlist";
 import { runSmokeProbe, setFeatureFlag } from "@/services/probe";
 import { runStorageProbe } from "@/services/storage";
+import {
+  runGoldenSet,
+  setEvalAnchor,
+  summarizeRun,
+} from "@/services/eval-runner";
+import { tierInterviewTranscripts } from "@/services/interview-tiering";
 
 export async function approveCandidateAction(formData: FormData) {
   const user = await getSessionUser();
@@ -65,6 +71,49 @@ export async function setFlagAction(formData: FormData) {
   const key = String(formData.get("key") ?? "");
   const enabled = String(formData.get("enabled") ?? "") === "true";
   await setFeatureFlag(user, key, enabled);
+  revalidatePath("/admin");
+}
+
+export async function runGoldenSetAction(): Promise<{
+  ok: boolean;
+  message: string;
+}> {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") {
+    return { ok: false, message: "admin only" };
+  }
+  try {
+    const summary = await runGoldenSet();
+    const gate = summarizeRun(summary);
+    revalidatePath("/admin");
+    return {
+      ok: gate.releaseGate,
+      message: `run ${summary.runId}: ${gate.total} fixtures, ${gate.drifted.length} drifted, ${gate.failed.length} failed, ${summary.pendingAdjudication.length} pending adjudication — release gate ${gate.releaseGate ? "GREEN" : "RED"}`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      message: err instanceof Error ? err.message : "eval run failed",
+    };
+  }
+}
+
+export async function setEvalAnchorAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") return;
+  const fixtureId = String(formData.get("fixtureId") ?? "");
+  const band = String(formData.get("band") ?? "");
+  if (!fixtureId || !band) return;
+  await setEvalAnchor(fixtureId, band);
+  revalidatePath("/admin");
+}
+
+export async function tierTranscriptsAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") return;
+  await tierInterviewTranscripts({
+    force: String(formData.get("force") ?? "") === "true",
+  });
   revalidatePath("/admin");
 }
 
