@@ -4,10 +4,10 @@
 
 **Blocked by:** 03.
 
-**Status:** ready-for-agent
+**Status:** done (built + verified 2026-10-26)
 
-- [ ] All weights read from config rows; changing a weight changes scores on re-run
-- [ ] Hard-filter tests: fork, unlicensed, oversize repos never score
-- [ ] Vouch counts only memberships with recent lastSeen (dropped-from-list loses its vouch)
-- [ ] Determinism test: two scoring runs over identical data produce identical order
-- [ ] Dead-repo fixture flips shelf-eligible=false; flagged repos stay stored, never deleted
+- [x] All weights read from config rows; changing a weight changes scores on re-run
+- [x] Hard-filter tests: fork, unlicensed, oversize repos never score
+- [x] Vouch counts only memberships with recent lastSeen (dropped-from-list loses its vouch)
+- [x] Determinism test: two scoring runs over identical data produce identical order
+- [x] Dead-repo fixture flips shelf-eligible=false; flagged repos stay stored, never deleted

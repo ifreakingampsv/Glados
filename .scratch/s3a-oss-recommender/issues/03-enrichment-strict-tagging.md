@@ -4,11 +4,11 @@
 
 **Blocked by:** 01, 02.
 
-**Status:** ready-for-agent
+**Status:** done (built + verified 2026-10-26)
 
-- [ ] `resolveTagStrict` is pure: enrichment runs leave every skills table row-count unchanged (the grill's regression test)
-- [ ] Canonical tags written only from resolved outcomes; existing-candidate and confirm-zone topics count as unmatched
-- [ ] Top-unmatched counter accumulates per raw topic and is readable as an aggregate
-- [ ] Sha-unchanged repos skip all enrichment calls
-- [ ] Star history fetched once per repo; velocity percentile computed within band with the injectable clock
-- [ ] Enrich never writes to user-visible spine state (no events, no user_skills)
+- [x] `resolveTagStrict` is pure: enrichment runs leave every skills table row-count unchanged (the grill's regression test)
+- [x] Canonical tags written only from resolved outcomes; existing-candidate and confirm-zone topics count as unmatched
+- [x] Top-unmatched counter accumulates per raw topic and is readable as an aggregate
+- [x] Sha-unchanged repos skip all enrichment calls
+- [x] Star history fetched once per repo; velocity percentile computed within band with the injectable clock
+- [x] Enrich never writes to user-visible spine state (no events, no user_skills)

@@ -4,10 +4,10 @@
 
 **Blocked by:** 06.
 
-**Status:** ready-for-agent
+**Status:** done (built + verified 2026-10-26)
 
-- [ ] Flagship button produces the pre-filled prompt (template = config row; repo + skill context interpolated)
-- [ ] `Note` model + save action (source kind, title, content, optional skill link); saved notes retrievable
-- [ ] `ProjectPick` create / status-transition / drop actions with validated statuses
-- [ ] Browsing, picking, and note-saving write zero evidence events and never touch user_skills (asserted)
-- [ ] Demoable flow on the dev test account: pick → see considering → copy prompt → paste brief → note saved
+- [x] Flagship button produces the pre-filled prompt (template = config row; repo + skill context interpolated)
+- [x] `Note` model + save action (source kind, title, content, optional skill link); saved notes retrievable
+- [x] `ProjectPick` create / status-transition / drop actions with validated statuses
+- [x] Browsing, picking, and note-saving write zero evidence events and never touch user_skills (asserted)
+- [x] Demoable flow on the dev test account: pick → see considering → copy prompt → paste brief → note saved

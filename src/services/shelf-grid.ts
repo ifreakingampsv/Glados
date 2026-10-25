@@ -143,5 +143,3 @@ export function matchArchetypesForTitles(
   }
   return [...matched];
 }
-
-export type { GithubRepoData };

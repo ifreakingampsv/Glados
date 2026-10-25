@@ -126,6 +126,13 @@ export default async function DiscoverPage({
                       </li>
                     ))}
                   </ul>
+                  <p>
+                    <small>
+                      <Link href="/how-levels-work">
+                        How evidenced vs claimed works →
+                      </Link>
+                    </small>
+                  </p>
                   {card.annotation ? (
                     <details>
                       <summary>Why it&apos;s worth rebuilding</summary>

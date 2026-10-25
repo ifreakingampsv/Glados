@@ -4,12 +4,12 @@
 
 **Blocked by:** 04 (needs a scored shelf; cards render annotation text when present, gracefully without).
 
-**Status:** ready-for-agent
+**Status:** done (built + verified 2026-10-26)
 
-- [ ] Cards label each signal (evidenced / claimed / target fit) and link to how-levels-work where trust matters
-- [ ] Stretch badge appears for one-level-up repos only; hidden when the user has no evidenced level
-- [ ] Gaps toggle + archetype picks persist per user; explicit pick overrides inference
-- [ ] Already-imported repos never appear in matched cards
-- [ ] Empty spine → global fallback + explainer CTA; the matched section is never a dead blank
-- [ ] One `RecImpression` row per shown card, written server-side at match time
-- [ ] Zero event_log writes anywhere in the flow (asserted in tests); route renders 200 in the authed group
+- [x] Cards label each signal (evidenced / claimed / target fit) and link to how-levels-work where trust matters
+- [x] Stretch badge appears for one-level-up repos only; hidden when the user has no evidenced level
+- [x] Gaps toggle + archetype picks persist per user; explicit pick overrides inference
+- [x] Already-imported repos never appear in matched cards
+- [x] Empty spine → global fallback + explainer CTA; the matched section is never a dead blank
+- [x] One `RecImpression` row per shown card, written server-side at match time
+- [x] Zero event_log writes anywhere in the flow (asserted in tests); route renders 200 in the authed group

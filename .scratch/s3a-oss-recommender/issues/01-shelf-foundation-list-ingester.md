@@ -4,11 +4,11 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done (built + verified 2026-10-26)
 
-- [ ] `Repo` + `RepoListMembership` models migrated; curated-list sources as config rows
-- [ ] GitHubReader interface at the HTTP boundary; real client on the app-owned read-only env token; fixture reader used by tests
-- [ ] Weekly `discover-lists` schedule registered; job no-ops while the `discover` flag is off
-- [ ] Ingest is idempotent: second run with unchanged fixtures writes zero new rows
-- [ ] Forked/archived entries and anti-generic gate hits never become shelf-eligible
-- [ ] Service tests against real Postgres with fixture reader responses
+- [x] `Repo` + `RepoListMembership` models migrated; curated-list sources as config rows
+- [x] GitHubReader interface at the HTTP boundary; real client on the app-owned read-only env token; fixture reader used by tests
+- [x] Weekly `discover-lists` schedule registered; job no-ops while the `discover` flag is off
+- [x] Ingest is idempotent: second run with unchanged fixtures writes zero new rows
+- [x] Forked/archived entries and anti-generic gate hits never become shelf-eligible
+- [x] Service tests against real Postgres with fixture reader responses

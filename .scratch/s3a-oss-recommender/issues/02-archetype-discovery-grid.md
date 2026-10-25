@@ -4,10 +4,10 @@
 
 **Blocked by:** 01 (shelf schema + GitHubReader seam).
 
-**Status:** ready-for-agent
+**Status:** done (built + verified 2026-10-26)
 
-- [ ] Grid builder produces the exact expected query list from archetype fixtures (math asserted)
-- [ ] Query cap enforced deterministically; rotation shifts coverage between consecutive runs
-- [ ] Search results upsert idempotently alongside list-lane repos (same repo = one row, lane flags coexist)
-- [ ] Editing the archetype config row changes the grid with zero code changes
-- [ ] Fixture-reader tests cover empty results, page-through, and 429 backoff
+- [x] Grid builder produces the exact expected query list from archetype fixtures (math asserted)
+- [x] Query cap enforced deterministically; rotation shifts coverage between consecutive runs
+- [x] Search results upsert idempotently alongside list-lane repos (same repo = one row, lane flags coexist)
+- [x] Editing the archetype config row changes the grid with zero code changes
+- [x] Fixture-reader tests cover empty results, page-through, and 429 backoff

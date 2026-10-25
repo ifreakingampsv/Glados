@@ -4,11 +4,11 @@
 
 **Blocked by:** 06.
 
-**Status:** ready-for-agent
+**Status:** done (built + verified 2026-10-26)
 
-- [ ] Tool listed in the MCP smoke; token auth identical to the five shipped tools; returns cards read-only
-- [ ] SKILL.md shelf section added with a version bump
-- [ ] Click telemetry updates the existing impression row (no second table)
-- [ ] CTR readouts hidden below minimum counts; aggregate-only, never named users
-- [ ] Top-unmatched-topics panel visible to admins
-- [ ] Flag-off disables page + both schedules + the tool — verified in one test
+- [x] Tool listed in the MCP smoke; token auth identical to the five shipped tools; returns cards read-only
+- [x] SKILL.md shelf section added with a version bump
+- [x] Click telemetry updates the existing impression row (no second table)
+- [x] CTR readouts hidden below minimum counts; aggregate-only, never named users
+- [x] Top-unmatched-topics panel visible to admins
+- [x] Flag-off disables page + both schedules + the tool — verified in one test

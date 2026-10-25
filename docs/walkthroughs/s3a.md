@@ -31,13 +31,16 @@ The schedules are nightly 02:00 UTC (`shelf_nightly`) and Monday 04:30 UTC
 pipeline NOW, in a second terminal:
 
 ```bash
-cat > /tmp/run-nightly.ts << 'EOF'
+cat > scripts/__walk.ts << 'EOF'
 import { runNightlyPipeline } from "@/services/shelf-pipeline";
-const res = await runNightlyPipeline();
-console.log(JSON.stringify(res, null, 2).slice(0, 2000));
-process.exit(0);
+async function main() {
+  const res = await runNightlyPipeline();
+  console.log(JSON.stringify(res, null, 2).slice(0, 2000));
+  process.exit(0);
+}
+main();
 EOF
-cp /tmp/run-nightly.ts scripts/__walk.ts && npx tsx scripts/__walk.ts; rm scripts/__walk.ts
+npx tsx scripts/__walk.ts; rm scripts/__walk.ts
 ```
 
 **With token:** expect `{ grid: { queries: ~200, upserted: N }, enrich: …,

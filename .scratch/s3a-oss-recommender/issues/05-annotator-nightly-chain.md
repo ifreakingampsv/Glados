@@ -4,11 +4,11 @@
 
 **Blocked by:** 04.
 
-**Status:** ready-for-agent
+**Status:** done (built + verified 2026-10-26)
 
-- [ ] `repo_annotate` provider route row seeded, platform-only; call site passes the 120s timeout
-- [ ] Annotation written once per repo+sha; repeated chain runs with unchanged sha make ZERO gateway calls (stub call count asserted)
-- [ ] Nightly `discover-nightly` schedule registered; worker grows to six schedules total; both discover jobs flag-checked at run time
-- [ ] Full-chain idempotency: pipeline run twice → identical shelf state
-- [ ] Rank order identical with annotations on vs off (order never depends on annotation content)
-- [ ] Gateway stub tests assert metering happens like every platform call
+- [x] `repo_annotate` provider route row seeded, platform-only; call site passes the 120s timeout
+- [x] Annotation written once per repo+sha; repeated chain runs with unchanged sha make ZERO gateway calls (stub call count asserted)
+- [x] Nightly `discover-nightly` schedule registered; worker grows to six schedules total; both discover jobs flag-checked at run time
+- [x] Full-chain idempotency: pipeline run twice → identical shelf state
+- [x] Rank order identical with annotations on vs off (order never depends on annotation content)
+- [x] Gateway stub tests assert metering happens like every platform call
